@@ -7,7 +7,7 @@
  *
  * This vault regularly runs multiple concurrent interactive Claude Code
  * sessions sharing one git working directory. One real incident: two
- * sessions independently asked Natasha the same yes/no question about
+ * sessions independently asked the operator the same yes/no question about
  * moving zanshin-local/ and got contradictory confirmations,
  * corrupting a git mv mid-flight. A hook can't call ListAgents or know
  * whether other sessions are actually live — it can only re-surface the
@@ -58,7 +58,7 @@ writeHookOutput(
 	"PreToolUse",
 	"Reminder (standing rule, 2026-08-15): this looks like a directory move/delete on shared vault state. " +
 		"Before relying on this, call ListAgents for other live sessions and message any found — two sessions " +
-		"getting contradictory confirmations from Natasha for the same move already corrupted one git mv today. " +
+		"getting contradictory confirmations from the operator for the same move already corrupted one git mv today. " +
 		"See brain/Claude Code - Agents and Parallelism.md.",
 );
 process.exit(0);
