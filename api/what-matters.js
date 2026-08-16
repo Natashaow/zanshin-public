@@ -1,19 +1,35 @@
 // Vercel serverless function — keeps the Anthropic API key server-side only.
-// Reads the same JSON this app's UI reads (src/data/generated/), asks Claude to rank
-// what actually matters right now, returns structured JSON. Note those files are
-// synthetic demo fixtures in this repo, NOT real vault data — see .gitignore's privacy
-// boundary. Real synced data lives in src/data/local/ and never enters git or a deploy.
+// Reads the same JSON this app's UI reads, resolved the same way (local/ first,
+// tracked fixtures otherwise — see loadJSON), asks Claude to rank what actually
+// matters right now, returns structured JSON.
+//
+// What this means for the privacy boundary, stated plainly because this is the
+// one outbound call in the system: the vault itself never leaves the disk, but
+// the task lines and North Star focus lines resolved above are sent to the
+// Anthropic API in the prompt below on each request. Nothing is stored there and
+// no copy of the vault exists off-machine. src/data/local/ is gitignored, so a
+// git-based deploy never carries it — a deployed instance can only ever rank the
+// synthetic fixtures.
 // The client (WhatMattersNow in App.jsx) calls this and falls back to a hardcoded
 // real captured response (WHAT_MATTERS_FALLBACK in vaultApi.js) if this route
 // isn't reachable (e.g. local `vite dev` without `vercel dev`) or the call fails.
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-function loadJSON(relPath) {
-  return JSON.parse(readFileSync(join(__dirname, '..', relPath), 'utf-8'))
+// Resolve data the same way the UI does (see src/data/vaultApi.js): prefer the
+// gitignored src/data/local/ when it exists, fall back to the tracked synthetic
+// fixtures. Without this the two halves disagreed — the UI listed real vault
+// tasks while this route ranked the fictional Meridian backlog, so the panel's
+// rationales referred to work that wasn't on screen. A fresh clone has no
+// local/ and is unaffected: it ranks the fixtures, which is what makes the
+// README's quoted ranking reproducible.
+function loadJSON(name) {
+  const local = join(__dirname, '..', 'src/data/local', name)
+  const fixture = join(__dirname, '..', 'src/data/generated', name)
+  return JSON.parse(readFileSync(existsSync(local) ? local : fixture, 'utf-8'))
 }
 
 // Illustrative only — not a live Calendar read (same honesty framing as YOUR_DAY_SEED
@@ -75,8 +91,8 @@ export default async function handler(req, res) {
 
   let openTasks, northStarFocus
   try {
-    openTasks = loadJSON('src/data/generated/openTasks.json')
-    northStarFocus = loadJSON('src/data/generated/northStarFocus.json')
+    openTasks = loadJSON('openTasks.json')
+    northStarFocus = loadJSON('northStarFocus.json')
   } catch (e) {
     res.status(500).json({ error: 'Failed to load vault data', detail: String(e) })
     return

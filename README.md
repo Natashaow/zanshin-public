@@ -56,7 +56,9 @@ Obsidian vault  ──►  local sync step (not shipped — see below)  ──�
 - `src/App.jsx` — the app. Drag-to-reorder and the capture queue persist to `localStorage`.
 - **[`os/`](os/) — the agent layer.** Five hooks that run on the agent runtime's lifecycle events with no human in the loop: agent activity recorded to the feed this dashboard renders, note writes routed and checked at write time, destructive git operations intercepted before they run. `os/hooks/log-agent-activity.ts` is the producer for `src/data/generated/agentActivity.json` — the panel and the thing that fills it are both in this repo. Not wired from a clone (`settings.json` isn't shipped); it's readable evidence, not an install. See [`os/README.md`](os/README.md).
 
-Full detail: [`ARCHITECTURE.md`](ARCHITECTURE.md).
+**What actually leaves this machine:** the vault never does. One outbound call per request carries the open-task lines and the North Star focus lines to the Anthropic API, stores nothing, and returns a ranking. Career, financial and raw-capture material is dropped at the sync boundary before any file is written. The full table is in [`ARCHITECTURE.md`](ARCHITECTURE.md#what-crosses-the-machine-boundary).
+
+Full detail — the four layers, the boundary, and a claim-by-claim map of which file proves what: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Running locally
 
