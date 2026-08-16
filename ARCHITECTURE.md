@@ -20,9 +20,10 @@ A real, deployed, single-page Vite + React 19 app — not a mock prototype. Core
 |---|---|
 | `src/App.jsx` | Real, shipped — the entire app. No `src/components/` split (deliberate). |
 | `src/index.css` | Real — Tailwind v4 `@theme` block, 3 color tokens (void/panel/brand). See `Visual-UI-Spec.md`. |
-| `src/data/vaultApi.js` | Real — sole data module. Wiring and derivation logic only; reads the fixtures below, shapes them for the UI, and re-exports the hand-authored seeds. **Identical to the private source repo's copy**, byte for byte. |
-| `src/data/seeds.js` | **Synthetic** — the hand-authored seed content (mock mail, calendar, links, the offline ranking). Real schema, invented content. See the callout below. |
-| `src/data/generated/*.json` | **Synthetic demo fixtures** in this repo — real schema, invented content. Tracked deliberately; see the callout below. |
+| `src/data/vaultApi.js` | Real — sole data module. Prefers `src/data/local/` at runtime, falls back to the tracked fixtures. |
+| `src/data/seeds.js` | **Synthetic, tracked** — hand-authored seed content (mock mail, calendar, links, the offline ranking). Real schema, invented content. |
+| `src/data/generated/*.json` | **Synthetic demo fixtures, tracked** — real schema, invented content. |
+| `src/data/local/` | **Gitignored, optional** — real vault data when running against a real vault. Never in git. |
 | `scripts/sync-vault-data.mjs` | **Not shipped in this repo.** In the private source it reads one specific vault's folder layout and writes the five files above. Excluded because it is vault-specific and carries a privacy boundary that only makes sense against that layout. |
 | `api/what-matters.js` | Real — Vercel serverless function, live Claude call (see Data Flow). |
 | `README.md` | Real — written for this public repo. |
@@ -36,9 +37,29 @@ A real, deployed, single-page Vite + React 19 app — not a mock prototype. Core
 >
 > They are tracked rather than gitignored for one reason: `src/data/vaultApi.js` imports them **statically** (`import openTasks from './generated/openTasks.json'`), so a fresh clone with no fixtures cannot build. Tracking them is what makes `git clone && npm install && npm run dev` work with no vault present. This is safe precisely because nothing in this repo can regenerate them from a real vault.
 >
-> **`src/data/seeds.js` is the same arrangement for hand-authored content.** The private source repo's copy of that file names real people, notes and projects; this repo's copy is invented. Everything else — `App.jsx`, `vaultApi.js`, `api/what-matters.js`, the styles and build config — is byte-identical to the private original.
->
-> That is deliberate architecture, not a coincidence. The privacy boundary is drawn at **whole files**, so extracting this repo is a file swap rather than a line-by-line sanitising pass. The earlier arrangement inlined the private values inside the same modules as the logic, which meant every sync was a judgement call — and it drifted twice, once leaving this repo 88 lines behind on `App.jsx` while a privacy fix applied here was simultaneously missing from the original. Two files now carry the entire boundary.
+> **`src/data/seeds.js` is the same arrangement for hand-authored content** — this repo's copy is invented.
+
+## One repo, two data states
+
+There is no private fork of this project. **This repository is the whole thing**, and it cannot hold real data — a structural property rather than a rule someone has to remember:
+
+| Path | Git | Content |
+|---|---|---|
+| `src/data/generated/*.json` | tracked | **always** synthetic fixtures |
+| `src/data/seeds.js` | tracked | **always** synthetic hand-authored content |
+| `src/data/local/` | **gitignored** | real vault data, when present |
+| `scripts/sync-vault-data.mjs` | **gitignored** | the vault→JSON sync; vault-path-specific, so not shipped |
+
+`vaultApi.js` resolves `local/` with `import.meta.glob`, which yields an empty object when the directory is absent. So the same code compiles and runs in both states:
+
+- **Fresh clone** — no `local/`, no sync script. Builds and runs immediately on the synthetic fixtures. `npm install && npm run dev` is all it takes.
+- **Author's machine** — `local/` present, populated by the sync script from a real Obsidian vault. Same UI, real content, and none of it can reach git.
+
+`USING_LOCAL_DATA` is exported so the UI can say which state it is in. A demo must never be mistaken for live state.
+
+**Why it is built this way, since the reasoning is the interesting part.** The previous arrangement was two repos: a private daily driver and a sanitised public copy, reconciled by hand. It failed twice. The copies drifted in *both directions at once* — the public one fell 88 lines behind on `App.jsx` while a privacy fix made there was missing from the original. Separately, the private build was deployed to a URL that served real vault content unauthenticated, while the host's dashboard reported protection as enabled.
+
+A `.gitignore` alone could not have prevented either, because `src/data/generated/` **must** be tracked — `vaultApi.js` imports it statically, so a clone with no fixtures cannot build. The fix was to stop asking one path to be both things: split *the path that must be tracked* from *the path that holds real data*, and ignoring the second becomes safe. One repo, one `.gitignore`, no sync step between copies, and no judgement call left to get wrong under time pressure.
 >
 > To run it against a real Obsidian vault you supply your own sync step that writes these five files in the documented shapes. That script is intentionally absent — it read one specific private vault's folder layout, so it would be neither useful nor safe to publish.
 

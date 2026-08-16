@@ -46,3 +46,14 @@ CLAUDE.md
 USER.md
 .env
 .env.*
+
+# ---------------------------------------------------------------------------
+# Real vault data — the ONLY place it may live in this repo, and it never
+# enters git. src/data/vaultApi.js prefers these files at runtime and falls
+# back to the tracked synthetic fixtures in src/data/generated/ when absent,
+# so a fresh clone still builds and runs. Written by scripts/sync-vault-data.mjs.
+#
+# Do not "fix" a missing dashboard by copying real data into src/data/generated/
+# — that path is tracked, and that is exactly how real tasks got published once.
+# ---------------------------------------------------------------------------
+src/data/local/

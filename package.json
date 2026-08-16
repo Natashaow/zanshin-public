@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "sync-vault": "node scripts/sync-vault-data.mjs",
+    "predev": "npm run sync-vault",
     "dev": "vite",
+    "prebuild": "npm run sync-vault",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
