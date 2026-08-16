@@ -24,6 +24,11 @@ dist-ssr
 *.sw?
 .vercel
 
+# Second git dir. This working tree is covered by two repos: this one (publish-safe,
+# see the privacy boundary below) and a full-tree private backup that deliberately
+# DOES include the paths that boundary excludes. See scripts/backup-private.sh.
+.git-private/
+
 # ---------------------------------------------------------------------------
 # Privacy boundary — this repo is the public extraction of a private vault app.
 #
