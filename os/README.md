@@ -23,12 +23,17 @@ agents run  ─►  log-agent-activity.ts records it (no human)  ─►  events.
 | `hooks/log-agent-activity.ts` | `PostToolUse`, `TaskCompleted`, `SubagentStart`, `SubagentStop` | Records every agent launch and completion to a shared event feed. The producer for the panel above. |
 | `hooks/validate-write.ts` | `PostToolUse` on `Write`/`Edit` | Routes and checks every note write against the vault's taxonomy **at write time**, so misfiled knowledge is caught as it happens rather than at cleanup. |
 | `hooks/check-shared-state-move.ts` | `PreToolUse` on `Bash(git *)` | Interrupts destructive shared-state operations before they run. |
+| `hooks/check-broad-git-staging.ts` | `PreToolUse` on `Bash(git *)` | Catches `git add -A` / `git add .` / `git commit -a` — broad staging that absorbs other sessions' in-flight work into your commit. Wired 2026-08-17; see the note below. |
 | `hooks/classify-message.ts` | `UserPromptSubmit` | Classifies incoming input and injects routing hints. |
 | `hooks/generate-memory-index.ts` | maintenance run, **not a hook** | Regenerates the memory index from note frontmatter. Operator-invoked — listed here for completeness and labelled so, rather than counted as unattended. |
 
-`hooks/lib/` holds the 14 shared modules those five import. Nothing in here is written for this repo; it is lifted unchanged from the working system.
+`hooks/lib/` holds the shared modules those hooks import. Nothing in here is written for this repo; it is lifted unchanged from the working system. *(The counts that used to sit in this sentence went stale the first time a hook was added — describe the set, don't tally it.)*
 
-[`agents-manifest.md`](agents-manifest.md) is the other half: the ten workers those hooks fire around, with the tool grants that bound the agent graph at two levels. It is the only file here written *for* this repo, because the claim it supports lives in configuration that is not shippable.
+[`agents-manifest.md`](agents-manifest.md) is the second half: the ten workers those hooks fire around, with the tool grants that bound the agent graph at two levels.
+
+[`safety-envelope.md`](safety-envelope.md) is the third. The manifest proves the agent graph can't grow a level; the envelope covers what those agents are permitted to *do* — send mail, deploy, spend, delete — which is a separate boundary with a separate mechanism. It also carries the honest list of what is **not** enforced, including two limits on the hooks in the table above.
+
+Both are written *for* this repo, because the claims they support live in configuration that is not shippable.
 
 ## Read `log-agent-activity.ts` first
 
@@ -48,7 +53,9 @@ Same standard this repo already applies to `scripts/sync-vault-data.mjs` (see `.
 - **`scripts/session-start.ts`** (553 lines) and **`scripts/stop-checklist.ts`** — the richest of the set, and the most vault-specific. Sanitizing them against a deadline is how a privacy leak happens, so they stayed out.
 
   > **Name collision worth flagging before you trip on it:** `hooks/lib/session-start.ts` **is** here, and is a *different file*. It is a generic utility module — string formatters, frontmatter parsing, path predicates — pulled in because `generate-memory-index.ts` uses its frontmatter reader. The 553-line hook entry point that shares its name is the one that isn't shipped.
-- **`check-broad-git-staging.ts`** — excluded for a different reason worth stating: it is wired to no hook. Shipping it would imply an autonomy that is not actually running.
+> **`check-broad-git-staging.ts` was in this section until 2026-08-17**, excluded with the reason: *"it is wired to no hook. Shipping it would imply an autonomy that is not actually running."* That was true when written. It is now wired to `PreToolUse`, so the file moved up into the table above and this note replaces it rather than sitting on top of a paragraph that still said otherwise.
+>
+> **Two limits, stated because the honest version is the useful one.** It **warns and never blocks** — it always exits 0, verified against four inputs before wiring (`ls` silent, `git commit -- <path>` silent, `git add -A` and `git add .` both warned). And the auto-commit daemon that runs `git add -A` on its own timer **does not go through the agent's shell**, so this hook never sees it. It guards the agent, not the repository.
 
 ## Honest status
 

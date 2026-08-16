@@ -92,6 +92,8 @@ Ten named subagents are defined in the working vault's `.claude/agents/`. The sh
 
 So the graph is two levels deep and cannot become three. A worker returns to the session that called it; there is no worker-to-worker edge, no recursion, and no depth limit to tune, because depth is bounded by the capability grant rather than by a counter. Per-agent grants are in [`os/agents-manifest.md`](os/agents-manifest.md), which publishes eight of the ten by name and states plainly why the other two are withheld — they operate on career and performance material, which is the category Layer 3 drops. The no-agent-tool property was checked across all ten.
 
+That bounds how many agents can exist, not what any one of them may do. The second bound — which calls require a human, which are refused outright, and which rules are enforced by configuration versus honoured by convention — is in [`os/safety-envelope.md`](os/safety-envelope.md), added 2026-08-17. It is deliberately explicit about the gaps: three of the five operator-facing safety rules are convention only, and the file says so.
+
 The rest of the multi-agent surface, named against the pattern it corresponds to:
 
 | Pattern | Where it is here | Held in place by |
@@ -194,6 +196,7 @@ Every claim in Part 1 maps to a file in this repository:
 | The human override outranks the model, and persists | `useTaskList` / `useDragReorder` in `src/App.jsx` |
 | An agent layer runs on lifecycle events with no human | `os/hooks/`, and `os/README.md` for what is and isn't wired |
 | The agent graph is two levels deep and cannot recurse | `os/agents-manifest.md` — no worker holds an agent-spawning tool |
+| Outbound and irreversible actions are gated, not just discouraged | `os/safety-envelope.md` — the `deny`/`ask` model, with every rule tagged by the tier that enforces it, and an explicit list of what is *not* enforced |
 | The dashboard's agent feed has a producer in this repo | `os/hooks/log-agent-activity.ts` → `src/data/generated/agentActivity.json` |
 | Building on an unstable API was documented, not smoothed over | header comment of `os/hooks/log-agent-activity.ts` |
 | The privacy boundary is structural | `.gitignore`, and the absence of `scripts/sync-vault-data.mjs` |
