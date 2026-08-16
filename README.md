@@ -2,7 +2,7 @@
 
 **A daily-driver dashboard for a personal knowledge vault, where an LLM decides what actually matters right now.**
 
-🔗 **Live:** https://second-brain-preview.vercel.app
+🔗 **No hosted demo right now** — the previous deployment was retired and the URL is dead. Run it locally in two commands: [Running locally](#running-locally).
 
 Built solo. Submitted to BUIDL_QUESTS 2026 under the **OPC / Super Individuals** track.
 

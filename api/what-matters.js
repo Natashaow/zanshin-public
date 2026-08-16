@@ -1,6 +1,8 @@
 // Vercel serverless function — keeps the Anthropic API key server-side only.
-// Reads the same real vault-synced JSON this app's UI reads (src/data/generated/),
-// asks Claude to rank what actually matters right now, returns structured JSON.
+// Reads the same JSON this app's UI reads (src/data/generated/), asks Claude to rank
+// what actually matters right now, returns structured JSON. Note those files are
+// synthetic demo fixtures in this repo, NOT real vault data — see .gitignore's privacy
+// boundary. Real synced data lives in src/data/local/ and never enters git or a deploy.
 // The client (WhatMattersNow in App.jsx) calls this and falls back to a hardcoded
 // real captured response (WHAT_MATTERS_FALLBACK in vaultApi.js) if this route
 // isn't reachable (e.g. local `vite dev` without `vercel dev`) or the call fails.
@@ -22,11 +24,48 @@ const YOUR_DAY_SEED = [
   { title: 'Second Brain OS review', time: '4:30 PM' },
 ]
 
+// Abuse guard. This route spends a real Anthropic key on every call and requires no
+// credential, so once this repo is public the route is public knowledge — anyone can
+// read it here and bill the key by looping requests. The limiter is per warm instance,
+// not global (serverless gives no shared memory without a store), so treat it as a
+// speed bump that makes casual farming pointless, NOT as a hard spend cap. If this is
+// ever deployed on a real domain, put a proper store or Vercel's firewall in front.
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 10
+const hits = new Map()
+
+function rateLimited(req) {
+  const ip =
+    (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
+    req.socket?.remoteAddress ||
+    'unknown'
+  const now = Date.now()
+  const recent = (hits.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
+  recent.push(now)
+  hits.set(ip, recent)
+  // Bound the map so a spray of distinct IPs can't grow it without limit.
+  if (hits.size > 5000) hits.clear()
+  return recent.length > RATE_LIMIT_MAX
+}
+
 export default async function handler(req, res) {
   // Must never be cached — the ranking depends on live task data and a live model
   // call. Without this, Vercel's edge caches the first response (including error
   // responses) and every subsequent request/reload sees the same stale result.
   res.setHeader('Cache-Control', 'no-store, max-age=0')
+
+  // The client only ever GETs this. Anything else is not a real caller.
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.setHeader('Allow', 'GET, HEAD')
+    res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
+  if (rateLimited(req)) {
+    res.setHeader('Retry-After', String(RATE_LIMIT_WINDOW_MS / 1000))
+    res.status(429).json({ error: 'Rate limit exceeded — try again shortly' })
+    return
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
