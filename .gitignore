@@ -42,6 +42,26 @@ dist-ssr
 # statically, so a clone with no fixtures cannot build. This is safe precisely
 # because the sync script that would regenerate them from a real vault is not
 # shipped (see ARCHITECTURE.md). Never overwrite them with synced output.
+#
+# `os/hooks/` is the SECOND deliberate exception, added 2026-08-17. It holds code
+# copied out of the private vault's `.claude/scripts/` — i.e. material this
+# boundary would otherwise cover — and it IS tracked. Stated plainly here so the
+# exception is visible at the boundary rather than discovered later:
+#
+#   - Scope is a fixed, reviewed list: 5 hook scripts + their 14-module import
+#     closure. It is not "the scripts directory"; do not widen it by copying more
+#     in without re-running the review.
+#   - Every file was scanned for career, compensation, client, credential and
+#     personal content before landing. The only hits were two *filenames* inside
+#     hint strings. Re-run that scan before adding anything.
+#   - `settings.json` is deliberately NOT shipped, so nothing under `os/` is wired
+#     or runnable from a clone. It is readable evidence, not an install.
+#   - Excluded on purpose: session-start.ts and stop-checklist.ts (vault-specific),
+#     check-broad-git-staging.ts (wired to no hook — shipping it would imply
+#     autonomy that isn't running).
+#
+# The ignore rule cannot be the guard for this one, so the review is. If that
+# tradeoff ever stops being worth it, ignore `os/` here and delete the directory.
 # ---------------------------------------------------------------------------
 branding/
 memory-bank/

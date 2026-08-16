@@ -1,0 +1,446 @@
+/**
+ * Pure helpers for session-start context assembly — extracted so the
+ * formatting logic is unit-testable without spawning git, reading the file
+ * system, or invoking the Obsidian CLI.
+ */
+
+import { join } from "node:path";
+
+import { escapeRegex } from "./regex.ts";
+
+export function take(stdout: string, n: number): string {
+	return stdout.split("\n").slice(0, n).join("\n");
+}
+
+/**
+ * Injection-size meter line: eager-layer bloat becomes visible the day it
+ * starts. kB = 1000 bytes, one decimal. Negative/NaN guard to 0.0kB — the
+ * meter must never be the thing that breaks the hook.
+ */
+export function formatInjectionSize(bytes: number): string {
+	const safe = Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
+	return `_context injected: ${(safe / 1000).toFixed(1)}kB_`;
+}
+
+/**
+ * Local-time date header matching `date +%Y-%m-%d` followed by the weekday
+ * name. Separate from `new Date()` so tests can pass a fixed date.
+ */
+export function formatDateHeader(d: Date): string {
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+	return `${y}-${m}-${day} (${weekday})`;
+}
+
+/**
+ * Format the "Active Work" section from a list of filenames in 02 - Active Projects.
+ * Strips `.md`, keeps the first `limit`, returns "(none)" for empty input.
+ */
+export function formatActiveWork(
+	filenames: readonly string[],
+	limit: number,
+): string {
+	const names = filenames
+		.filter((f) => isMarkdownFilename(f))
+		.map((f) => f.replace(/\.md$/i, ""))
+		.slice(0, limit);
+	return names.length > 0 ? names.join("\n") : "(none)";
+}
+
+/**
+ * Format the "Recent Changes" section from raw `git log --oneline` output.
+ * Strips blank lines, keeps the first `limit`, falls back to
+ * "(no git history)" when empty (matching the legacy shell message).
+ */
+export function formatRecentChanges(gitOutput: string, limit: number): string {
+	const lines = gitOutput
+		.split("\n")
+		.filter((l) => l.length > 0)
+		.slice(0, limit);
+	return lines.length > 0 ? lines.join("\n") : "(no git history)";
+}
+
+/**
+ * Return true if a path (relative, using "/" separators) falls under any
+ * of the supplied skip prefixes. A prefix like ".git" matches ".git" and
+ * ".git/anything" but not ".github" (exact segment boundary).
+ */
+export function isSkippedPath(
+	pathRel: string,
+	skipPrefixes: readonly string[],
+): boolean {
+	return skipPrefixes.some(
+		(p) => pathRel === p || pathRel.startsWith(p + "/"),
+	);
+}
+
+/**
+ * Find the closing `---` delimiter of a YAML frontmatter block. The input
+ * is assumed to start with `---` (caller checks). Returns the index of the
+ * newline before the closing delimiter, or -1 if the block is unterminated.
+ *
+ * Matches only a full delimiter line (`\n---\n`, `\n---\r\n`, or `\n---` at
+ * EOF) so body content like `---foo` after a newline is not treated as the
+ * terminator.
+ */
+function findFrontmatterEnd(content: string): number {
+	const m = content.slice(3).match(/\n---(?:\r?\n|$)/);
+	return m && m.index !== undefined ? m.index + 3 : -1;
+}
+
+/**
+ * Extract a string value for `field` from YAML frontmatter at the top of
+ * a markdown document. Supports quoted ("..."), single-quoted ('...'),
+ * and bare values on the same line as the key. Returns null when the
+ * frontmatter block or field is absent.
+ *
+ * This is a deliberately small parser — just enough for one-line string
+ * fields like `description:`. Multi-line/block YAML is out of scope.
+ * Handles CRLF line endings and escapes regex metacharacters in `field`.
+ */
+export function extractFrontmatterField(
+	content: string,
+	field: string,
+): string | null {
+	if (!content.startsWith("---")) return null;
+	const end = findFrontmatterEnd(content);
+	if (end === -1) return null;
+	const fm = content.slice(3, end);
+	const re = new RegExp(
+		`^${escapeRegex(field)}:[ \\t]*(.*?)[ \\t]*\\r?$`,
+		"m",
+	);
+	const m = fm.match(re);
+	if (!m) return null;
+	const raw = m[1] ?? "";
+	if (raw === "") return null;
+	if (
+		(raw.startsWith('"') && raw.endsWith('"')) ||
+		(raw.startsWith("'") && raw.endsWith("'"))
+	) {
+		return raw.slice(1, -1);
+	}
+	return raw;
+}
+
+/**
+ * Return the body of a markdown document with its leading YAML frontmatter
+ * stripped. If there's no frontmatter block, returns the input unchanged.
+ * Handles both LF and CRLF delimiters.
+ */
+export function stripFrontmatter(content: string): string {
+	if (!content.startsWith("---")) return content;
+	const end = findFrontmatterEnd(content);
+	if (end === -1) return content;
+	const rest = content.slice(end);
+	const m = rest.match(/^\n---(\r?\n|$)/);
+	return m ? rest.slice(m[0].length) : rest;
+}
+
+/**
+ * True if the body contains at least one list item with text content —
+ * i.e. a bullet like `- foo`, not a bare `-` placeholder. Brain topic
+ * notes are list-shaped by template, so this is the clearest signal of
+ * "has the user actually added anything here yet?"
+ */
+export function hasBrainContent(body: string): boolean {
+	return /^[ \t]*[-*+][ \t]+\S.*$/m.test(body);
+}
+
+/**
+ * Restricted character set for `qmd_index`. The value ends up in both CLI
+ * argv and a filesystem path (`~/.cache/qmd/<name>.sqlite`), so path
+ * separators, parent-dir refs, whitespace, and shell metacharacters must
+ * not be accepted. Mirrors the shape of npm package names / git branch
+ * segments: alnum + dot + dash + underscore, must start with an alnum.
+ */
+const QMD_INDEX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/**
+ * True when `value` is a string that's safe to use as a qmd named index.
+ * Exported so callers that read the manifest from other surfaces (the MCP
+ * wrapper, the bootstrap script) can apply the same rule.
+ */
+export function isValidQmdIndex(value: unknown): value is string {
+	return typeof value === "string" && QMD_INDEX_PATTERN.test(value);
+}
+
+/**
+ * Extract the `qmd_index` string from a `vault-manifest.json` source. Returns
+ * the configured named index (so QMD's storage is scoped to this vault) or
+ * null when the manifest is absent, malformed, missing the field, or the
+ * value fails validation (path separators, whitespace, empty, etc.).
+ *
+ * Kept as a pure helper so the caller can own the fs read and tests can pass
+ * fixture strings. A null return means "use QMD's default global index" —
+ * backwards-compatible with forks that haven't adopted the field yet.
+ */
+export function parseQmdIndex(manifestJson: string | null): string | null {
+	if (manifestJson === null) return null;
+	try {
+		const parsed = JSON.parse(manifestJson) as unknown;
+		if (
+			parsed !== null &&
+			typeof parsed === "object" &&
+			"qmd_index" in parsed
+		) {
+			const value = (parsed as Record<string, unknown>)["qmd_index"];
+			if (isValidQmdIndex(value)) return value;
+		}
+	} catch {
+		/* malformed manifest → treat as missing */
+	}
+	return null;
+}
+
+/**
+ * Build the argv tail for a `qmd` CLI invocation, prepending `--index <name>`
+ * when the vault has configured a named index. Callers pass the subcommand
+ * and its args (e.g. `["update"]`, `["query", text, "--json"]`); the return
+ * value is the full argv after the `qmd` command itself.
+ */
+export function qmdArgsWithIndex(
+	index: string | null,
+	subcommandArgs: readonly string[],
+): string[] {
+	return index === null
+		? [...subcommandArgs]
+		: ["--index", index, ...subcommandArgs];
+}
+
+/**
+ * True when a captured stderr blob is @tobilu/qmd's native `better-sqlite3`
+ * binding failing to load because it was compiled against a different Node
+ * ABI than the one currently running (`ERR_DLOPEN_FAILED` / a
+ * `NODE_MODULE_VERSION` mismatch message). This is a DISTINCT failure mode
+ * from "store missing/empty" (see `qmdStoreLooksEmpty` in the hook script):
+ * the sqlite file can be tens of MB and perfectly healthy, but every qmd
+ * invocation still crashes before it ever opens it, because the native
+ * addon itself won't load under the current Node binary — typically after
+ * a Node upgrade on the host machine. Query results and the whole MCP
+ * server go silently dark in this state (the fire-and-forget re-index spawn
+ * swallows the crash), so this check exists to catch it instead of letting
+ * a session quietly fall back to Grep/Read for the rest of its life.
+ */
+export function isQmdNativeAbiMismatch(stderr: string): boolean {
+	return (
+		stderr.includes("NODE_MODULE_VERSION") ||
+		stderr.includes("ERR_DLOPEN_FAILED")
+	);
+}
+
+/**
+ * Derive the @tobilu/qmd package root (the directory containing its
+ * package.json) from `resolveQmdEntry()`'s resolved entry path
+ * (`.../@tobilu/qmd/dist/cli/qmd.js`), so a native-module rebuild can run
+ * `npm rebuild` with that directory as its cwd — portable across a global
+ * npm install, a local one, Homebrew's node_modules layout, or Windows,
+ * without hardcoding any machine-specific prefix path. Returns null when
+ * the entry itself is null (no resolvable install to rebuild) or doesn't
+ * match the expected `dist/cli/qmd.js` shape.
+ */
+export function qmdPackageRootFromEntry(entry: string | null): string | null {
+	if (entry === null) return null;
+	const marker = join("dist", "cli", "qmd.js");
+	if (!entry.endsWith(marker)) return null;
+	const prefixLen = entry.length - marker.length - 1; // -1 drops the separator before "dist"
+	return prefixLen > 0 ? entry.slice(0, prefixLen) : null;
+}
+
+/**
+ * Extract the `qmd_min_version` string from a `vault-manifest.json` source.
+ * Returns null when the manifest is absent, malformed, or the field is not
+ * a string — the min-version check simply doesn't run then (the field is
+ * opt-in, and qmd itself is optional).
+ */
+export function parseQmdMinVersion(manifestJson: string | null): string | null {
+	if (manifestJson === null) return null;
+	try {
+		const parsed = JSON.parse(manifestJson) as unknown;
+		if (
+			parsed !== null &&
+			typeof parsed === "object" &&
+			"qmd_min_version" in parsed
+		) {
+			const value = (parsed as Record<string, unknown>)["qmd_min_version"];
+			if (typeof value === "string" && value.length > 0) return value;
+		}
+	} catch {
+		/* malformed manifest → treat as missing */
+	}
+	return null;
+}
+
+/**
+ * True if a directory-entry name has a `.md` extension. Compared case-
+ * insensitively so files saved as `.MD` or `.Md` (legal on case-insensitive
+ * filesystems like NTFS and APFS, and produced by editors that preserve
+ * pasted casing) are still recognized as markdown.
+ */
+export function isMarkdownFilename(name: string): boolean {
+	return name.toLowerCase().endsWith(".md");
+}
+
+/**
+ * Extract the root-level entries from `vault-manifest.json`'s `infrastructure`
+ * list — files like CLAUDE.md, README.*.md, Home.md that aren't user content
+ * and therefore shouldn't be scanned for open tasks. Glob patterns with `/`
+ * (e.g. `.claude/**`) are excluded because they target subdirectories.
+ *
+ * Returns the raw patterns; matching against filenames is the caller's job
+ * via {@link isInfraFilename}.
+ */
+export function parseInfraRootFilenames(
+	manifestJson: string | null,
+): readonly string[] {
+	if (manifestJson === null) return [];
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(manifestJson);
+	} catch {
+		return [];
+	}
+	if (parsed === null || typeof parsed !== "object") return [];
+	const infra = (parsed as Record<string, unknown>)["infrastructure"];
+	if (!Array.isArray(infra)) return [];
+	return infra.filter(
+		(e): e is string => typeof e === "string" && !e.includes("/"),
+	);
+}
+
+/**
+ * True if `filename` matches any of the given root-level infrastructure
+ * patterns. Patterns are literal filenames (`CLAUDE.md`) or globs with `*`
+ * wildcards (`README.*.md`). Other regex metacharacters are escaped so a
+ * pattern like `foo.md` matches `foo.md`, not `fooXmd`.
+ */
+export function isInfraFilename(
+	filename: string,
+	patterns: readonly string[],
+): boolean {
+	for (const p of patterns) {
+		if (!p.includes("*")) {
+			if (filename === p) return true;
+			continue;
+		}
+		const re = new RegExp(
+			"^" +
+				p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") +
+				"$",
+		);
+		if (re.test(filename)) return true;
+	}
+	return false;
+}
+
+const CHECKED_TASK = /^\s*- \[[xX]\]/;
+const UNCHECKED_TASK = /^\s*- \[ \]/;
+const OPEN_LOOP_TAG = /#open-loop\b/;
+
+/**
+ * Aggregate unchecked Markdown tasks (`- [ ] …`) and `#open-loop`-tagged
+ * lines across multiple files and format them as one string grouped by
+ * source. Tasks are taken in input order — the caller decides which
+ * sources matter most (e.g. 02 - Active Projects before vault root) and what
+ * counts as a "file". Returns "(no open tasks)" when nothing matches.
+ * Caps total tasks at `limit` so a single noisy file can't drown the
+ * section; non-positive `limit` returns "(no open tasks)".
+ *
+ * A checked checkbox (`- [x]`/`- [X]`) is always excluded, even when it
+ * also carries a `#open-loop` tag — a completed item is not an open loop.
+ * A non-checkbox line carrying `#open-loop` still surfaces, matching the
+ * tag's use outside task lists (see `bases/Open Loops.base`).
+ *
+ * Source paths are sanitised before they become group headers — newlines
+ * and carriage returns in a filename (legal on POSIX, possible via shared
+ * drives) would otherwise corrupt the line-based output format and let
+ * downstream parsers mis-attribute tasks to the wrong source.
+ *
+ * Output shape:
+ *
+ *   02 - Active Projects/project-x.md
+ *   - [ ] task one
+ *   - [ ] task two
+ *
+ *   2026-05-18.md
+ *   - [ ] daily task
+ *   Follow up with vendor #open-loop
+ */
+export function collectOpenTasks(
+	sources: readonly { readonly path: string; readonly content: string }[],
+	limit: number,
+): string {
+	const groups: string[] = [];
+	let collected = 0;
+	for (const { path, content } of sources) {
+		if (collected >= limit) break;
+		const lines = content.split(/\r?\n/).filter((line) => {
+			if (CHECKED_TASK.test(line)) return false;
+			return UNCHECKED_TASK.test(line) || OPEN_LOOP_TAG.test(line);
+		});
+		if (lines.length === 0) continue;
+		const taken = lines.slice(0, limit - collected);
+		// Collapse any CR/LF run (POSIX-only filename oddity) to a literal
+		// `\n` escape — bare \r alone would otherwise slip past a /\r?\n/
+		// regex but still corrupt the line-based output on consumers that
+		// treat \r as a line separator (older macOS, some viewers).
+		const safePath = path.replace(/[\r\n]+/g, "\\n");
+		groups.push(`${safePath}\n${taken.join("\n")}`);
+		collected += taken.length;
+	}
+	return groups.length > 0 ? groups.join("\n\n") : "(no open tasks)";
+}
+
+/**
+ * Format the "Brain Topics" section — one line per brain/ note with its
+ * description from frontmatter, so Claude sees what topic notes exist
+ * without loading their full content. Omits North Star (already loaded
+ * in its own section) and Memories (an index that just points here).
+ * Appends "(empty)" when the note has no filled bullets, so Claude
+ * knows not to waste a read on a stub.
+ */
+export function formatBrainIndex(
+	entries: readonly {
+		readonly name: string;
+		readonly description: string | null;
+		readonly hasContent: boolean;
+	}[],
+): string {
+	const lines = entries
+		.filter((e) => e.name !== "North Star" && e.name !== "Memories")
+		.map((e) => {
+			const desc = e.description ?? "(no description)";
+			const suffix = e.hasContent ? "" : " (empty)";
+			return `- [[${e.name}]] — ${desc}${suffix}`;
+		});
+	return lines.length > 0 ? lines.join("\n") : "(none)";
+}
+
+/**
+ * Resolve the machine-local sqlite store path for a named qmd index,
+ * honoring XDG_CACHE_HOME exactly like @tobilu/qmd's own store.js (and the
+ * MCP wrapper's resolveIndexSqlitePath in qmd-mcp.mjs — kept in sync by
+ * behavior-locking tests on both, since .mjs exports can't be imported into
+ * .ts under strip-types). Pure: env and home are injected for testability.
+ */
+export function resolveIndexStorePath(
+	indexName: string,
+	env: Record<string, string | undefined>,
+	home: string,
+): string {
+	const base = env["XDG_CACHE_HOME"] ?? join(home, ".cache");
+	return join(base, "qmd", `${indexName}.sqlite`);
+}
+
+/**
+ * Eager-layer injection mode (#107): on `resume`/`compact` the static bulk
+ * (North Star, brain index, file listing) is ALREADY in-conversation from
+ * the session's first injection — re-injecting doubles cost for zero new
+ * information. Full mode on `startup`/`clear` and on any missing/unknown
+ * source (fail open — Codex/Gemini hosts don't send one).
+ */
+export function injectionMode(source: unknown): "full" | "pointer" {
+	return source === "resume" || source === "compact" ? "pointer" : "full";
+}

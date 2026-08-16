@@ -27,6 +27,7 @@ A real, deployed, single-page Vite + React 19 app — not a mock prototype. Core
 | `scripts/sync-vault-data.mjs` | **Not shipped in this repo.** In the private source it reads one specific vault's folder layout and writes the five files above. Excluded because it is vault-specific and carries a privacy boundary that only makes sense against that layout. |
 | `api/what-matters.js` | Real — Vercel serverless function, live Claude call (see Data Flow). |
 | `README.md` | Real — written for this public repo. |
+| `os/hooks/*.ts` | **Real, lifted unchanged from the working vault** — 5 hooks + 14 shared modules that run on the agent runtime's lifecycle events. `log-agent-activity.ts` is the producer for `src/data/generated/agentActivity.json`, closing that loop inside this repo. **Not wired here**: `settings.json` is not shipped, so nothing in `os/` executes from a clone. Readable evidence, not an install — see `os/README.md`. |
 | `src/assets/vite.svg` | Dead — unused create-vite scaffold default. |
 
 **Note on generated-data pattern**: this app's `src/data/generated/*.json` files are committed rather than gitignored. There is no server-side vault access at deploy time, so a deploy ships whatever data was last committed — worth knowing before assuming a live site reflects current vault state.
