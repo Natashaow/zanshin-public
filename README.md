@@ -16,12 +16,17 @@ Every tool I tried gave me a list. A list is the problem restated, not solved. R
 
 ## What it does
 
-Zanshin reads the vault and ranks it. The **What Matters Now** panel sends my real open tasks and my real North Star goals to Claude, and gets back a ranked shortlist where each item carries *why it's there* — the reasoning, not just the order:
+Zanshin reads the vault and ranks it. The **What Matters Now** panel sends the open tasks and the North Star goals to Claude, and gets back a ranked shortlist where each item carries *why it's there* — the reasoning, not just the order.
 
-> **Rebuild Reel You Product Strategy section as fixed-hero + tab-selector**
-> *This is Portfolio & Design Integration's core open loop and your 1PM focus block is literally a build session, so do this now.*
+Here is the top of a real ranking, taken from the demo fixtures that ship in this repo — clone it and you get this:
 
-That sentence is the product. It connects a task to a goal to a slot in my actual day — three sources a list view cannot join.
+> **Decide how tax is handled for EU customers before billing can ship**
+> *Billing is the only project marked blocked, and every other launch task is downstream of it — this is the one decision holding the release.*
+>
+> **Reply to the accountant's email about VAT thresholds**
+> *The unblock above depends on an answer you have not asked for yet. Small task, but it is the actual critical path.*
+
+Those two sentences are the product. Nothing in the task text says these are related, or that the second one gates the first — the model worked that out by reading forty tasks against the stated goals. That's the join a list view cannot make.
 
 Everything else exists to serve that: today's missions (capped at three on purpose), active projects, workspaces, life buckets, a quick-capture queue, and an agent-activity feed.
 
@@ -65,7 +70,9 @@ That works with no vault present and no API key — it builds and runs from the 
 
 ### A note on the data you'll see
 
-The quoted ranking above is **real output over my own vault**. What ships in this repo is **not** — every file in `src/data/generated/` is a synthetic fixture in the real schema, built around a fictional solo developer shipping a product called Meridian, and the offline fallback ranking matches it.
+Every file in `src/data/generated/` is a synthetic fixture in the real schema, built around a fictional solo developer shipping a product called Meridian — and the ranking quoted above is that fixture set, so it's reproducible rather than a screenshot you have to take on trust.
+
+The app I actually run reads my own vault, and none of that data is here.
 
 That split is deliberate. The app reads a private Obsidian vault containing client work, financial and career material, so publishing real synced output would mean publishing that. The sync script that produces the real files is also not shipped, for the same reason — it reads one specific vault's folder layout. To run this against your own vault, write a sync step that emits those five JSON files in the shapes documented in `ARCHITECTURE.md`.
 
