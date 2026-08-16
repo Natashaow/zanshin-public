@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/what-matters.js": {
+      "includeFiles": "src/data/generated/**"
+    }
+  }
+}

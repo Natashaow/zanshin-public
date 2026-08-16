@@ -1,0 +1,17 @@
+[
+  {
+    "id": "focus-1",
+    "text": "Ship Meridian v1 to paying users (primary)",
+    "done": false
+  },
+  {
+    "id": "focus-2",
+    "text": "Build a repeatable content engine (growth)",
+    "done": false
+  },
+  {
+    "id": "focus-3",
+    "text": "Get the deploy pipeline boring (infrastructure)",
+    "done": false
+  }
+]

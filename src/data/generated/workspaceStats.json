@@ -1,0 +1,40 @@
+{
+  "vaultName": "DemoVault",
+  "notesCount": 128,
+  "topicsCount": 9,
+  "openLoopCount": 7,
+  "resourcesCount": 0,
+  "items": {
+    "notes": [
+      { "title": "Project - Meridian", "path": "02 - Active Projects/Meridian/Project - Meridian.md" },
+      { "title": "Meridian - Launch Checklist", "path": "02 - Active Projects/Meridian/Meridian - Launch Checklist.md" },
+      { "title": "Billing - Blocked Decisions", "path": "02 - Active Projects/Billing/Billing - Blocked Decisions.md" },
+      { "title": "Onboarding - Screen Inventory", "path": "02 - Active Projects/Onboarding/Onboarding - Screen Inventory.md" },
+      { "title": "User Research - Interview Round 1", "path": "02 - Active Projects/User Research/User Research - Interview Round 1.md" },
+      { "title": "Infra - Release Safety", "path": "02 - Active Projects/Infra/Infra - Release Safety.md" },
+      { "title": "Content Engine - Weekly Cadence", "path": "02 - Active Projects/Content Engine/Content Engine - Weekly Cadence.md" },
+      { "title": "Design System - Token Rename", "path": "02 - Active Projects/Design System/Design System - Token Rename.md" }
+    ],
+    "resources": [],
+    "topics": [
+      { "title": "Scheduling as a Constraint Problem", "path": "03 - Workspaces/Topics/Scheduling as a Constraint Problem.md" },
+      { "title": "Pricing for Solo SaaS", "path": "03 - Workspaces/Topics/Pricing for Solo SaaS.md" },
+      { "title": "Calendar Sync - Timezone Edge Cases", "path": "03 - Workspaces/Topics/Calendar Sync - Timezone Edge Cases.md" },
+      { "title": "Build in Public - What Actually Compounds", "path": "03 - Workspaces/Topics/Build in Public - What Actually Compounds.md" },
+      { "title": "Stripe Webhooks - Idempotency Patterns", "path": "03 - Workspaces/Topics/Stripe Webhooks - Idempotency Patterns.md" },
+      { "title": "Empty States as Onboarding", "path": "03 - Workspaces/Topics/Empty States as Onboarding.md" },
+      { "title": "Rollback Strategies for Small Teams", "path": "03 - Workspaces/Topics/Rollback Strategies for Small Teams.md" },
+      { "title": "Interview Technique - Non-Leading Questions", "path": "03 - Workspaces/Topics/Interview Technique - Non-Leading Questions.md" },
+      { "title": "Design Tokens - Naming That Survives", "path": "03 - Workspaces/Topics/Design Tokens - Naming That Survives.md" }
+    ],
+    "openLoop": [
+      { "title": "Open Loop - EU Tax Handling", "path": "02 - Active Projects/Billing/Open Loop - EU Tax Handling.md" },
+      { "title": "Open Loop - Team Accounts in v1", "path": "02 - Active Projects/Meridian/Open Loop - Team Accounts in v1.md" },
+      { "title": "Open Loop - Production Rollback Untested", "path": "02 - Active Projects/Infra/Open Loop - Production Rollback Untested.md" },
+      { "title": "Open Loop - Free Tier at Launch", "path": "02 - Active Projects/Meridian/Open Loop - Free Tier at Launch.md" },
+      { "title": "Open Loop - Newsletter for Teardowns", "path": "02 - Active Projects/Content Engine/Open Loop - Newsletter for Teardowns.md" },
+      { "title": "Open Loop - Analytics Tool Choice", "path": "02 - Active Projects/Meridian/Open Loop - Analytics Tool Choice.md" },
+      { "title": "Open Loop - Refund Policy Wording", "path": "02 - Active Projects/Billing/Open Loop - Refund Policy Wording.md" }
+    ]
+  }
+}

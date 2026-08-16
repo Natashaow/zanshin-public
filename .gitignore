@@ -1,0 +1,48 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vercel
+
+# ---------------------------------------------------------------------------
+# Privacy boundary — this repo is the public extraction of a private vault app.
+#
+# The paths below exist in the private source repo and MUST NOT be published.
+# They are listed here rather than merely left unstaged so that a careless
+# `git add -A` cannot publish them: the ignore rule is the guard, not discipline.
+#
+# `src/data/generated/` is the one deliberate exception to that pattern. It IS
+# tracked here, but every file in it is a synthetic demo fixture — invented
+# content in the real schema — because `src/data/vaultApi.js` imports them
+# statically, so a clone with no fixtures cannot build. This is safe precisely
+# because the sync script that would regenerate them from a real vault is not
+# shipped (see ARCHITECTURE.md). Never overwrite them with synced output.
+# ---------------------------------------------------------------------------
+branding/
+memory-bank/
+scripts/
+skills/
+CLAUDE.md
+USER.md
+.env
+.env.*

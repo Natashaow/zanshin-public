@@ -1,0 +1,145 @@
+@import "tailwindcss";
+/* Self-hosted variable fonts (design.md §4) — no external font requests */
+@import "@fontsource-variable/schibsted-grotesk";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* Zanshin tokens — palette locked in branding/Zanshin Brand Pitch.md and the Pass 10
+   token table; full architecture in design.md (§3), shipped record in Visual-UI-Spec.md.
+   Every --color-* here generates bg/text/border/ring utilities with automatic opacity
+   modifiers (e.g. bg-brand/10).
+
+   Three tiers (design.md §3): primitives (violet scale, named colors) → semantic
+   aliases (interactive, due-date, critical, milestone) → components reference ONLY
+   the semantic layer. --color-brand stays as an alias of --color-violet-500 so every
+   existing bg-brand/text-brand/ring-brand class keeps working unchanged. */
+@theme {
+  /* — Primitives — */
+  --color-void: #07060d; /* oklch(12.8% 0.017 292) */
+  --color-panel: #1f1129; /* oklch(21.0% 0.049 310) */
+
+  /* Primary scale — OKLCH, hue 294, chroma peaks at the 500 anchor (= shipped #9b7bf0
+     exactly; Direction Log Pass 08). Values computed 2026-08-15, see design.md §3.1. */
+  --color-violet-100: oklch(95% 0.078 294);
+  --color-violet-200: oklch(88% 0.101 294);
+  --color-violet-300: oklch(80% 0.126 294);
+  --color-violet-400: oklch(72% 0.152 294);
+  --color-violet-500: #9b7bf0; /* oklch(67% 0.169 294) — the validated accent */
+  --color-violet-600: oklch(56% 0.136 294);
+  --color-violet-700: oklch(48% 0.11 294);
+  --color-violet-800: oklch(39% 0.081 294);
+  --color-violet-900: oklch(30% 0.053 294);
+  --color-violet-1000: oklch(21% 0.047 294);
+
+  /* Named accents — informational only, never interactive (design.md §10 hard rules) */
+  --color-orange: #ff8c37; /* due-date tag ONLY, static */
+  --color-gold: #ffd700; /* rare milestones / mission-clear only */
+  --color-crimson: #e63946; /* the single optional "Critical" flag only */
+
+  /* — Semantic aliases — */
+  --color-brand: var(--color-violet-500); /* legacy alias; THE interactive color */
+  --color-interactive: var(--color-violet-500);
+  --color-interactive-quiet: var(--color-violet-300); /* secondary-button border+text */
+  --color-due-date: var(--color-orange);
+  --color-critical: var(--color-crimson);
+  --color-milestone: var(--color-gold);
+
+  /* — Typography (design.md §4, shipped 2026-08-15) —
+     Mono-forward structural voice (locked, Pass 01): structural/system text is mono,
+     prose is a quiet grotesque. Two families total; display = the mono, heavier.
+     Schibsted Grotesk replaces the earlier Inter proposal deliberately (Inter is the
+     default-UI-sans cliché; grotesque skeleton harmonizes with the mono). Both
+     self-hosted variable fonts via @fontsource — no external requests. */
+  --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, sans-serif; /* app default */
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-structural: var(--font-mono); /* semantic alias: labels, badges, metadata, counts */
+  --tracking-structural: 0.08em; /* uppercase micro-labels; pairs with weight ≥500 */
+
+  /* — Motion (design.md §5; named tokens, no one-off values) — */
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1); /* open/expand — confident settle, zero overshoot. No bounce, ever */
+  --ease-out-quick: cubic-bezier(0.4, 0, 0.2, 1); /* close/dismiss — faster than opening, by design */
+  --duration-instant: 100ms; /* press-down */
+  --duration-fast: 140ms; /* closing */
+  --duration-settle: 180ms; /* release after press */
+  --duration-base: 200ms; /* opening */
+  --duration-deliberate: 320ms; /* accordion / focus-mode dim */
+
+  /* Every bare transition-* utility inherits the system feel */
+  --default-transition-duration: var(--duration-base);
+  --default-transition-timing-function: var(--ease-standard);
+}
+
+body {
+  margin: 0;
+}
+
+/* ===================================================================
+   Zanshin motion primitives (design.md §5) — structure-independent:
+   these attach to elements, not layout, so they survive any relayout.
+   Ported from the 2026-08-02 Dashboard artifact's interaction set.
+   All values route through the @theme tokens above — no one-offs.
+   Contract (class names are API, App.jsx applies them):
+     .motion-press  .glow-draw  .strike-flash  .pulse-live  .drop-line
+   =================================================================== */
+
+/* Press — buttons, rows: down fast/linear, release settles. No bounce, ever. */
+.motion-press {
+  transition:
+    transform var(--duration-settle) var(--ease-standard),
+    box-shadow var(--duration-settle) var(--ease-standard);
+}
+.motion-press:active {
+  transform: scale(0.97);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4); /* shadow collapses to the tight layer */
+  transition-duration: var(--duration-instant);
+  transition-timing-function: linear;
+}
+
+/* Sword-draw — trailing violet glow on hover/drag. Violet ONLY (Pass 07). */
+.glow-draw {
+  transition:
+    box-shadow var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard);
+}
+.glow-draw:hover,
+.glow-draw.is-dragging {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-interactive) 35%, transparent),
+    0 0 14px color-mix(in oklab, var(--color-interactive) 30%, transparent),
+    0 0 32px color-mix(in oklab, var(--color-interactive) 12%, transparent);
+}
+
+/* Mission-clear lightning strike — crisp one-shot double-flick.
+   The ONLY place --color-milestone (gold) animates. Apply on completion,
+   remove on animationend. */
+@keyframes zanshin-strike {
+  0%   { box-shadow: none; filter: none; }
+  8%   { box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-milestone) 80%, transparent),
+                     0 0 18px color-mix(in oklab, var(--color-milestone) 55%, transparent);
+         filter: brightness(1.5); }
+  20%  { box-shadow: 0 0 4px color-mix(in oklab, var(--color-milestone) 20%, transparent);
+         filter: brightness(1.05); }
+  32%  { box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-milestone) 60%, transparent),
+                     0 0 12px color-mix(in oklab, var(--color-milestone) 40%, transparent);
+         filter: brightness(1.25); }
+  100% { box-shadow: none; filter: none; }
+}
+.strike-flash { animation: zanshin-strike 450ms var(--ease-out-quick) 1; }
+
+/* Pulse — live/in-progress dots only. Breathing, not urgent. No scale. */
+@keyframes zanshin-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.pulse-live { animation: zanshin-breathe 2000ms ease-in-out infinite; }
+
+/* Drag-reorder drop indicator — the line the drop must not lie about. */
+.drop-line { box-shadow: inset 0 2px 0 0 var(--color-interactive); }
+
+/* Reduced motion: kill glow/flash/pulse (and future Euthymia dim);
+   keep instant state changes. */
+@media (prefers-reduced-motion: reduce) {
+  .glow-draw, .glow-draw:hover, .glow-draw.is-dragging { transition: none; box-shadow: none; }
+  .strike-flash { animation: none; }
+  .pulse-live { animation: none; }
+  .motion-press, .motion-press:active { transition: none; transform: none; }
+}
