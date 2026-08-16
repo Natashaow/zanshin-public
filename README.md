@@ -18,7 +18,7 @@ Every tool I tried gave me a list. A list is the problem restated, not solved. R
 
 Zanshin reads the vault and ranks it. The **What Matters Now** panel sends the open tasks and the North Star goals to Claude, and gets back a ranked shortlist where each item carries *why it's there* — the reasoning, not just the order.
 
-Here is the top of a real ranking, taken from the demo fixtures that ship in this repo — clone it and you get this:
+Here is the top of the offline ranking that ships with the demo fixtures — clone the repo, run it without an API key, and this is exactly what you see:
 
 > **Decide how tax is handled for EU customers before billing can ship**
 > *Billing is the only project marked blocked, and every other launch task is downstream of it — this is the one decision holding the release.*
@@ -26,7 +26,7 @@ Here is the top of a real ranking, taken from the demo fixtures that ship in thi
 > **Reply to the accountant's email about VAT thresholds**
 > *The unblock above depends on an answer you have not asked for yet. Small task, but it is the actual critical path.*
 
-Those two sentences are the product. Nothing in the task text says these are related, or that the second one gates the first — the model worked that out by reading forty tasks against the stated goals. That's the join a list view cannot make.
+Those two sentences are the product. Nothing in the task text says these are related, or that the second one gates the first — that connection has to be reasoned from forty tasks read against the stated goals. It is the join a list view cannot make, and it is what the live call produces against a real vault.
 
 Everything else exists to serve that: today's missions (capped at three on purpose), active projects, workspaces, life buckets, a quick-capture queue, and an agent-activity feed.
 
