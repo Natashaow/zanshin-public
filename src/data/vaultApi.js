@@ -1,5 +1,15 @@
 // ---------------------------------------------------------------------------
-// Static vault data — mirrors CLAUDE.md structure & North Star.md / Project notes
+// Sole data module for the dashboard.
+//
+// This file is PUBLISHABLE VERBATIM. It contains wiring and derivation logic
+// only — no hand-authored content naming real people, projects or notes. That
+// content lives in ./seeds.js, and real vault content arrives as JSON under
+// ./generated/. Both of those are swapped when extracting the public repo;
+// this file is copied unchanged.
+//
+// If you are about to hardcode a string that names something real, it belongs
+// in ./seeds.js instead. Keeping that rule is what makes the local -> public
+// sync a file operation rather than a judgement call.
 // ---------------------------------------------------------------------------
 
 import northStarFocus from './generated/northStarFocus.json'
@@ -8,44 +18,41 @@ import activeProjects from './generated/activeProjects.json'
 import openTasks from './generated/openTasks.json'
 import agentActivity from './generated/agentActivity.json'
 
-// Placeholder — sidebar module. Unlike Links below, each entry carries a lifeBucket
-// tag (matches Active Projects / Your Tasks) since these are meant to be filterable
-// dashboard/view links, not a dumb bookmark list. Not wired to real destinations yet.
-export const VIEWS_SEED = [
-  { id: "v1", title: "Meridian - Launch Checklist", lifeBucket: "Meridian" },
-];
-
-// Placeholder — sidebar module. Deliberately flat, no lifeBucket tag — a plain
-// bookmark list per the "keep Links simple" decision.
-export const LINKS_SEED = [
-  { id: "l1", title: "Meridian repo (GitHub)" },
-  { id: "l2", title: "Stripe dashboard" },
-];
+// Hand-authored seed content. Re-exported so consumers keep importing everything
+// from this module — swapping seeds.js changes no import anywhere else.
+export {
+  VIEWS_SEED,
+  LINKS_SEED,
+  EMAILS_TO_HANDLE_SEED,
+  YOUR_DAY_SEED,
+  WEEKLY_HIGHLIGHTS,
+  WHAT_MATTERS_FALLBACK,
+  SKILL_CHEATSHEET,
+} from './seeds.js'
 
 // The vault directory name, needed to build `obsidian://open?vault=…` deep links.
 // Synced rather than hardcoded so a renamed/relocated vault doesn't silently produce
-// links that open nothing.
-export const VAULT_NAME = workspaceStats.vaultName ?? "DemoVault";
+// links that open nothing. The fallback is deliberately generic — a real name here
+// would be a hardcoded private string in a file that ships verbatim.
+export const VAULT_NAME = workspaceStats.vaultName ?? "Vault";
 
 // Sidebar module. Nav tiles for the workspace pockets (Notes, Resources, Topics)
 // plus the two panels that live in the sidebar (Open Loop, Wrap Up) so all five
 // pockets are reachable from one place. Counts AND contents come from
-// workspaceStats.json (see scripts/sync-vault-data.mjs) — real vault data, not mock.
+// workspaceStats.json — real synced data, not mock.
 //
 // Wired 2026-08-15 (they were inert buttons before). Two behaviours, because the five
 // tiles aren't the same kind of thing:
 //   kind: "vault"  — expands in place to list the real notes behind it, each a deep
 //                    link into Obsidian. Matches the "click & interlink" cross-cutting
-//                    decision (open the underlying content inline, don't navigate away)
-//                    in Second Brain Dashboard - Project Brief.
+//                    decision: open the underlying content inline, don't navigate away.
 //   kind: "panel"  — Wrap Up isn't a vault folder, it's a panel already rendered in the
 //                    sidebar, so its tile scrolls to and flashes that panel rather than
 //                    duplicating its contents into a second place. (Open Loop reads as a
 //                    sidebar panel too, but it does have a real vault population behind
 //                    it — every note tagged open-loop — so it lists them instead.)
-// Resources schema decided 2026-07-29 (reference/Resources/, one note per item,
-// frontmatter type/url/tags — see reference/Resources/Index.md). Folder starts
-// empty, so this count is real but currently zero until resources are added.
+// The resources pocket starts empty by design: raw links are kept in an external
+// reference tool, so this count is real but currently zero.
 export const WORKSPACES_SEED = [
   {
     id: "ws1",
@@ -64,14 +71,14 @@ export const WORKSPACES_SEED = [
       workspaceStats.resourcesCount === 0
         ? "No resources saved yet"
         : `${workspaceStats.resourcesCount} saved resource${workspaceStats.resourcesCount === 1 ? "" : "s"}`,
-    emptyText: "Nothing here yet — raw links live in Notion, not the vault.",
+    emptyText: "Nothing here yet — raw links are kept outside the vault.",
     items: workspaceStats.items?.resources ?? [],
   },
   {
     id: "ws3",
     title: "Topics",
     kind: "vault",
-    desc: `${workspaceStats.topicsCount} topic note${workspaceStats.topicsCount === 1 ? "" : "s"} in 03 - Workspaces/Topics`,
+    desc: `${workspaceStats.topicsCount} topic note${workspaceStats.topicsCount === 1 ? "" : "s"}`,
     emptyText: "No topic notes yet.",
     items: workspaceStats.items?.topics ?? [],
   },
@@ -92,115 +99,50 @@ export const WORKSPACES_SEED = [
   },
 ];
 
-// Placeholder — mocked like the rest of the dashboard, not a live Gmail read (yet).
-// Grouped by sender/org rather than by individual message, since this is meant to be
-// an at-a-glance view: "who do I owe a reply to," not a full inbox.
-export const EMAILS_TO_HANDLE_SEED = [
-  { id: "e1", sender: "Alex Tan", org: null, count: 2, latestSubject: "Re: VAT thresholds for EU customers", receivedAgo: "3h ago", handled: false },
-  { id: "e2", sender: "Stripe", org: "Stripe", count: 1, latestSubject: "Action required: verify your account", receivedAgo: "1d ago", handled: false },
-  { id: "e3", sender: "Priya Shah", org: null, count: 1, latestSubject: "Quick question before the interview", receivedAgo: "2d ago", handled: false },
-];
-
-// Placeholder — mocked like the rest of the dashboard, not a live Calendar read (yet).
-export const YOUR_DAY_SEED = [
-  { id: "c1", title: "Team sync", time: "10:00 AM", allDay: false },
-  { id: "c2", title: "Focus block — onboarding copy", time: "1:00 PM", allDay: false },
-  { id: "c3", title: "User interview — session 3", time: "4:30 PM", allDay: false },
-];
-
-// Real data — every unchecked `- [ ]` checkbox under 02 - Active Projects/, synced via
-// `npm run sync-vault` (see scripts/sync-vault-data.mjs). Replaces the old Daily
-// Highlights / Today / Tomorrow / This Week mock split: real checkboxes carry no
-// due-date or urgency metadata to honestly bucket by (decided 2026-08-03, flatten
-// rather than fabricate — same call as ACTIVE_PROJECTS.lifeBucket above). `note` is
-// the source note's title, for context on where a task came from.
+// Real data — every unchecked `- [ ]` checkbox in the vault's active-projects pillar.
+// Replaces the old Daily Highlights / Today / Tomorrow / This Week mock split: real
+// checkboxes carry no due-date or urgency metadata to honestly bucket by (decided
+// 2026-08-03 — flatten rather than fabricate). `note` is the source note's title, for
+// context on where a task came from.
 export const OPEN_TASKS_SEED = openTasks;
 
-// Real data — synced from brain/North Star.md's "Current Active Focus" checklist
-// via `npm run sync-vault` (auto-runs before dev/build; see scripts/sync-vault-data.mjs).
-// Read-only for now: editing this list in the dashboard does not write back to
-// North Star.md yet (punch-list item 6 — Current Focus Persistence).
+// Real data — synced from the vault's North Star "Current Active Focus" checklist.
+// Read-only for now: editing this list in the dashboard does not write back to the
+// source note yet.
 export const CURRENT_FOCUS_SEED = northStarFocus.map(({ id, text }) => ({ id, text }));
 
-// Synced from every `project:`-tagged note in the vault. `status` is the note's own
-// frontmatter lifecycle status. There is no vault-side `lifeBucket` or `dueDate` field
-// for whole projects — those are per-note tags — so both stay undefined here rather
-// than being fabricated.
+// Real data — synced from every `project:`-tagged note in the vault's active-projects
+// pillar. `status` is the note's own frontmatter doc-lifecycle status (active/completed/
+// archived/proposed/accepted/deprecated) — everything here reads "active" in practice,
+// since anything else would have been archived out.
+//
+// `lifeBucket` became real on 2026-08-15: it is read from each project hub note's own
+// `bucket/<name>` frontmatter tag, so it is the vault's existing taxonomy rather than a
+// dashboard-only invention. Projects with no bucket tag come through as null.
+// `dueDate` has no field at all — the vault has no per-project due date to read, so it
+// is left absent rather than fabricated.
 export const ACTIVE_PROJECTS = activeProjects;
 
-// Read-only display of the vault-level agent event log.
-// A separate control-plane app owns approve/reject/kill for this data; this
-// dashboard only surfaces it. Deliberate split — this is a read-only feed.
+// Read-only display of the vault-level, cross-project agent event log. A separate
+// control-plane app owns approve/reject/kill for these runs; this dashboard only
+// surfaces them. The log has more than one producer, so treat it as an append-only
+// feed this app does not own. See ARCHITECTURE.md for which app owns what.
 export const AGENT_ACTIVITY = agentActivity;
 
-// Same source as CURRENT_FOCUS_SEED above — the goals note's Current Active Focus
-// checklist doubles as the open-loops list (unchecked = open).
+// Same real source as CURRENT_FOCUS_SEED above — the North Star Current Active
+// Focus checklist doubles as the open-loops list (unchecked = open).
 export const INITIAL_OPEN_LOOPS = northStarFocus.map(({ id, text, done }) => ({
   id,
   text,
   done,
 }));
 
-// Weekly deltas read off the goals note. Synthetic in this repo, matching the fixtures.
-export const WEEKLY_HIGHLIGHTS = [
-  "Billing stayed blocked all week — same single decision, now 9 days old",
-  "Design system closed; deliberately stopped rather than polished further",
-  "2 of 6 user interviews done, 4 still unscheduled",
-];
-
-// "What Matters Now" fallback — the ranking shown when /api/what-matters isn't
-// reachable (plain `vite dev` without a server-side ANTHROPIC_API_KEY, or a failed
-// call). Honestly labeled as "captured" in the UI, never claimed as a live refresh.
-//
-// In this public repo it is a synthetic ranking over the synthetic fixtures in
-// src/data/generated/ — same reasoning shape the live endpoint produces, invented
-// content. It has to stay consistent with those fixtures: this is the FIRST thing a
-// reader sees when they clone and run without an API key, so an inconsistent fallback
-// reads as a broken demo.
-export const WHAT_MATTERS_FALLBACK = [
-  {
-    text: "Decide how tax is handled for EU customers before billing can ship",
-    rationale:
-      "Billing is the only project marked blocked, and every other launch task is downstream of it — this is the one decision holding the release.",
-  },
-  {
-    text: "Reply to the accountant's email about VAT thresholds",
-    rationale:
-      "The unblock above depends on an answer you have not asked for yet. Small task, but it is the actual critical path.",
-  },
-  {
-    text: "Production rollback is untested — script it and actually run it once",
-    rationale:
-      "The only open item that turns a bad deploy into a recoverable one. Its cost is fixed now and unbounded after the first paying customer.",
-  },
-  {
-    text: "Write the empty-state copy for the onboarding calendar screen",
-    rationale:
-      "Named in your own notes as the highest-leverage piece of onboarding, and it has been deferred three times while lower-value polish shipped.",
-  },
-  {
-    text: "This week's build-in-public post is not written",
-    rationale:
-      "Content Engine's stated goal is cadence, not any single post — and your note says one skipped week has historically become three.",
-  },
-];
-
-// The vault's own slash-command surface, shown as a reference card.
-export const SKILL_CHEATSHEET = [
-  { id: "s1", cmd: "/briefing", desc: "Morning briefing — reads North Star.md & work/ tasks" },
-  { id: "s2", cmd: "/dump", desc: "Auto-captures ideas, notes, or wins into structured Markdown" },
-  { id: "s3", cmd: "wrap up", desc: "End-of-day cleanup — updates wikilinks, indexes, North Star.md" },
-  { id: "s4", cmd: "/weekly", desc: "Weekly reflection — surfaces missed accomplishments" },
-  { id: "s5", cmd: "/om-project-archive", desc: "Moves completed 02 - Active Projects/ clusters to work/archive/YYYY" },
-  { id: "s6", cmd: "/om-vault-audit", desc: "Deep maintenance — orphans, broken links, stale notes" },
-];
-
 // Life Buckets are derived from ACTIVE_PROJECTS.lifeBucket — never a separate hardcoded
-// list, so a project's bucket only ever needs to be set in one place (Write-Correctness
-// Law 1: single-source status). Click-to-filter behavior is intentionally undecided (TBC)
-// — for now the row just expands to show its member projects. ACTIVE_PROJECTS is real data
-// now and carries no lifeBucket (see comment above) — everything falls into "Uncategorized"
-// until real per-project bucket tagging exists; this is an honest gap, not a fabricated grouping.
+// list, so a project's bucket only ever needs to be set in one place (single-source
+// status). Click-to-filter behavior is intentionally undecided (TBC) — for now the row
+// just expands to show its member projects. Projects whose source note carries no
+// `bucket/<name>` tag land in "Uncategorized"; that is a missing tag in the vault, not
+// a fabricated grouping.
 export function deriveLifeBuckets(projects) {
   const map = new Map();
   projects.forEach((p) => {
@@ -209,4 +151,24 @@ export function deriveLifeBuckets(projects) {
     map.get(bucket).push(p);
   });
   return Array.from(map.entries()).map(([name, members]) => ({ name, members }));
+}
+
+// The always-present, always-default destination for a capture. "Unsorted" is a real
+// state, not a placeholder: a thought with no home yet is the normal case, and naming a
+// home must never become a precondition for getting the thought out of your head.
+export const CAPTURE_INBOX = { id: "inbox", label: "Unsorted" };
+
+// Capture destinations are derived from ACTIVE_PROJECTS — same single-source rule as
+// deriveLifeBuckets above, so a project appears here because it's active in the vault,
+// never because it was hand-listed a second time. Deliberately NOT derived from life
+// buckets: buckets are a coarser axis and several projects share one, so a bucket-based
+// picker would collapse distinct destinations together.
+//
+// This is a *suggested* destination, and the distinction is the whole design. The app
+// has no filesystem access to the vault, so choosing a project here files nothing — it
+// tags the queued item with where you thought it belonged, so that when you do file it
+// by hand you aren't re-deciding from cold. Any copy or UI built on this must not imply
+// the capture has landed in the vault.
+export function deriveCaptureDestinations(projects) {
+  return [CAPTURE_INBOX, ...projects.map((p) => ({ id: p.id, label: p.title }))];
 }

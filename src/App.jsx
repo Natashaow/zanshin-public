@@ -3,6 +3,8 @@ import { Bot, CalendarClock, ChevronDown, ChevronRight, GripVertical, Inbox, Mai
 import {
   ACTIVE_PROJECTS,
   AGENT_ACTIVITY,
+  CAPTURE_INBOX,
+  deriveCaptureDestinations,
   deriveLifeBuckets,
   EMAILS_TO_HANDLE_SEED,
   INITIAL_OPEN_LOOPS,
@@ -298,8 +300,21 @@ function useCaptureQueue(storageKey) {
     }
   }, [items, storageKey])
 
-  const add = (text) =>
-    setItems((prev) => [{ id: `c${Date.now()}`, text, ts: new Date().toISOString() }, ...prev])
+  // `destination` is stored as a resolved label, not just an id, on purpose: the id points
+  // at a project that may be archived out of ACTIVE_PROJECTS before the item is ever
+  // cleared, and a queued thought rendering as a dangling id would be worse than useless.
+  // Items written before routing existed simply carry no destination — handled at render.
+  const add = (text, destination) =>
+    setItems((prev) => [
+      {
+        id: `c${Date.now()}`,
+        text,
+        ts: new Date().toISOString(),
+        destinationId: destination?.id,
+        destination: destination?.label,
+      },
+      ...prev,
+    ])
 
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id))
 
@@ -360,10 +375,10 @@ function WhatMattersNow() {
   )
 }
 
-// Read-only display of AGENT_ACTIVITY (work/agent-activity/events.jsonl, DECISION-9's
-// shared event log). A separate control-plane app owns approve/reject/kill for this data
-// live there, not here (see 2026-08-15 Decision - Dashboard Reconciliation). This panel
-// only surfaces "what's my agents are doing," nothing actionable.
+// Read-only display of AGENT_ACTIVITY (a vault-level, cross-project agent event log).
+// A separate control-plane app owns this data — approve/reject/kill live there, not
+// here. Deliberate split; see ARCHITECTURE.md for which app owns what. This panel only
+// surfaces "what are my agents doing," nothing actionable.
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diffMs / 60000)
@@ -401,10 +416,19 @@ function AgentActivity() {
   )
 }
 
-// Everything typed into the header quick-capture lands here. Read-and-clear only —
-// there is no edit, no routing, no tagging. Adding those would re-introduce the
-// decision fatigue capture exists to avoid; the vault is where a thought gets a home,
-// this is only the place it can't fall out of on the way there.
+// Everything typed into the header quick-capture lands here. Read-and-clear, plus the
+// one suggested destination chosen at capture time.
+//
+// This reverses an earlier rule in this file that read "there is no edit, no routing, no
+// tagging" (reversed 2026-08-16, see brain/Decision Log). That rule was right about the
+// failure mode and wrong about the cause: what re-introduces decision fatigue is a
+// *required* choice, not an available one. Routing here is optional, defaults to
+// Unsorted, and never blocks submit — typing and hitting Enter is byte-for-byte the same
+// interaction it always was. What it buys is that the re-deciding happens once, while the
+// thought is warm, instead of again later against a cold queue.
+//
+// Still no edit and no free-text tagging — those remain out, for the original reason.
+// And a destination is an intent, not a filing: nothing here has touched the vault.
 function CaptureQueue({ items, onDismiss }) {
   return (
     <Panel title="Captured" icon={Inbox}>
@@ -419,7 +443,17 @@ function CaptureQueue({ items, onDismiss }) {
               <li key={item.id} className="flex items-start gap-2 rounded-lg bg-void/40 p-2">
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-sm text-slate-200">{item.text}</p>
-                  <p className="mt-0.5 font-structural text-[10px] text-slate-500">{timeAgo(item.ts)}</p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                    <p className="font-structural text-[10px] text-slate-500">{timeAgo(item.ts)}</p>
+                    {/* Only a real project destination earns a chip. "Unsorted" and
+                        pre-routing items render nothing — absence is the default state,
+                        same rule the urgency ramp follows. */}
+                    {item.destination && item.destinationId !== CAPTURE_INBOX.id && (
+                      <span className="rounded-full bg-brand/15 px-2 py-0.5 font-structural text-[10px] text-brand">
+                        → {item.destination}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -433,7 +467,8 @@ function CaptureQueue({ items, onDismiss }) {
             ))}
           </ul>
           <p className="mt-2 font-structural text-[10px] text-slate-500">
-            Held in this browser only — file it into the vault to keep it.
+            Held in this browser only — a → destination is where you meant it to go, not
+            where it is. File it into the vault to keep it.
           </p>
         </>
       )}
@@ -508,6 +543,11 @@ function WorkspaceTile({ workspace, expanded, onActivate }) {
 
 function App() {
   const [capture, setCapture] = useState('')
+  // Destination resets to Unsorted after every capture rather than staying sticky. Sticky
+  // would save a click on a burst into one project, but the cost of a wrong sticky value
+  // is a silently mis-tagged thought — and the safe default has to be the free one.
+  const captureDestinations = deriveCaptureDestinations(ACTIVE_PROJECTS)
+  const [captureTarget, setCaptureTarget] = useState(CAPTURE_INBOX.id)
   const [expandedWorkspace, setExpandedWorkspace] = useState(null)
   const [flashedPanel, setFlashedPanel] = useState(null)
   const [captures, addCapture, dismissCapture] = useCaptureQueue('sbos-capture-queue')
@@ -563,17 +603,21 @@ function App() {
             </div>
           </div>
 
+          {/* Destination is optional and defaults to Unsorted, so type-and-Enter is
+              unchanged — the picker is skippable by never touching it. See CaptureQueue's
+              comment for why routing was allowed back in at all. */}
           <form
             onSubmit={(e) => {
               e.preventDefault()
               const text = capture.trim()
               if (!text) return
-              addCapture(text)
+              addCapture(text, captureDestinations.find((d) => d.id === captureTarget) ?? CAPTURE_INBOX)
               setCapture('')
+              setCaptureTarget(CAPTURE_INBOX.id)
             }}
-            className="flex gap-2"
+            className="flex flex-wrap items-center gap-2"
           >
-            <div className="relative flex-1">
+            <div className="relative min-w-0 flex-1 basis-full sm:basis-0">
               <Zap
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand"
                 aria-hidden="true"
@@ -584,6 +628,26 @@ function App() {
                 onChange={(e) => setCapture(e.target.value)}
                 placeholder="Quick capture — route ideas, tasks, notes…"
                 className="w-full rounded-full border border-white/10 bg-void/70 py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-500 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/40"
+              />
+            </div>
+            <div className="relative">
+              <select
+                value={captureTarget}
+                onChange={(e) => setCaptureTarget(e.target.value)}
+                aria-label="Where this capture is headed (optional — it is not filed there)"
+                className={`w-full appearance-none rounded-full border border-white/10 bg-void/70 py-2.5 pl-4 pr-9 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/40 ${
+                  captureTarget === CAPTURE_INBOX.id ? 'text-slate-500' : 'text-brand'
+                }`}
+              >
+                {captureDestinations.map((d) => (
+                  <option key={d.id} value={d.id} className="bg-panel text-slate-200">
+                    {d.id === CAPTURE_INBOX.id ? d.label : `→ ${d.label}`}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+                aria-hidden="true"
               />
             </div>
             <button
