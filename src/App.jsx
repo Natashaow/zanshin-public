@@ -105,7 +105,7 @@ function TaskTable({ tasks, onToggle, onReorder }) {
                 type="checkbox"
                 checked={task.done}
                 onChange={() => onToggle(task.id)}
-                className="h-4 w-4 rounded border-brand/40 accent-brand focus:ring-2 focus:ring-brand/50"
+                className="h-4 w-4 rounded border-brand/40 accent-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
                 aria-label={`Mark "${task.text}" as ${task.done ? 'incomplete' : 'complete'}`}
               />
             </td>
@@ -627,7 +627,7 @@ function App() {
                 value={capture}
                 onChange={(e) => setCapture(e.target.value)}
                 placeholder="Quick capture — route ideas, tasks, notes…"
-                className="w-full rounded-full border border-white/10 bg-void/70 py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-500 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/40"
+                className="w-full rounded-full border border-white/10 bg-void/70 py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus-visible:border-brand/60 focus-visible:ring-1 focus-visible:ring-brand/40"
               />
             </div>
             <div className="relative">
@@ -635,7 +635,7 @@ function App() {
                 value={captureTarget}
                 onChange={(e) => setCaptureTarget(e.target.value)}
                 aria-label="Where this capture is headed (optional — it is not filed there)"
-                className={`w-full appearance-none rounded-full border border-white/10 bg-void/70 py-2.5 pl-4 pr-9 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/40 ${
+                className={`w-full appearance-none rounded-full border border-white/10 bg-void/70 py-2.5 pl-4 pr-9 text-sm focus:outline-none focus-visible:border-brand/60 focus-visible:ring-1 focus-visible:ring-brand/40 ${
                   captureTarget === CAPTURE_INBOX.id ? 'text-slate-500' : 'text-brand'
                 }`}
               >
@@ -816,7 +816,7 @@ function App() {
                     type="checkbox"
                     checked={loop.done}
                     onChange={() => toggleLoop(loop.id)}
-                    className="mt-0.5 h-4 w-4 rounded accent-brand focus:ring-2 focus:ring-brand/50"
+                    className="mt-0.5 h-4 w-4 rounded accent-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
                   />
                   <span
                     className={`text-sm ${loop.done ? 'text-slate-500 line-through' : 'text-slate-300'}`}
