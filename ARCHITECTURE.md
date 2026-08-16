@@ -90,7 +90,7 @@ The fourth is the sharpest one, and the reason this is a system rather than a se
 
 Ten named subagents are defined in the working vault's `.claude/agents/`. The shape they form is the standard **orchestrator–worker (supervisor)** pattern, and one configuration fact pins it there: **not one of the ten is granted an agent-spawning tool.** Their grants are `Read`, `Grep`, `Glob`, `Bash`, `Write`, `Edit` and a few MCP surfaces — none can launch another agent.
 
-So the graph is two levels deep and cannot become three. A worker returns to the session that called it; there is no worker-to-worker edge, no recursion, and no depth limit to tune, because depth is bounded by the capability grant rather than by a counter. Per-agent grants are in [`os/agents-manifest.md`](os/agents-manifest.md).
+So the graph is two levels deep and cannot become three. A worker returns to the session that called it; there is no worker-to-worker edge, no recursion, and no depth limit to tune, because depth is bounded by the capability grant rather than by a counter. Per-agent grants are in [`os/agents-manifest.md`](os/agents-manifest.md), which publishes eight of the ten by name and states plainly why the other two are withheld — they operate on career and performance material, which is the category Layer 3 drops. The no-agent-tool property was checked across all ten.
 
 The rest of the multi-agent surface, named against the pattern it corresponds to:
 
