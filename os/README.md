@@ -28,6 +28,8 @@ agents run  ─►  log-agent-activity.ts records it (no human)  ─►  events.
 
 `hooks/lib/` holds the 14 shared modules those five import. Nothing in here is written for this repo; it is lifted unchanged from the working system.
 
+[`agents-manifest.md`](agents-manifest.md) is the other half: the ten workers those hooks fire around, with the tool grants that bound the agent graph at two levels. It is the only file here written *for* this repo, because the claim it supports lives in configuration that is not shippable.
+
 ## Read `log-agent-activity.ts` first
 
 If you only open one file, open that one — specifically its header comment.

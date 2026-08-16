@@ -86,6 +86,26 @@ Four behaviours observed firing inside a single ordinary session, none of them r
 
 The fourth is the sharpest one, and the reason this is a system rather than a set of conveniences: it refuses to let its own operator skip the step that keeps it correct. Autonomy that only ever helps is indistinguishable from a shortcut; autonomy that can say *no, not yet* is a control.
 
+### The topology: supervisor, with a deterministic router
+
+Ten named subagents are defined in the working vault's `.claude/agents/`. The shape they form is the standard **orchestrator–worker (supervisor)** pattern, and one configuration fact pins it there: **not one of the ten is granted an agent-spawning tool.** Their grants are `Read`, `Grep`, `Glob`, `Bash`, `Write`, `Edit` and a few MCP surfaces — none can launch another agent.
+
+So the graph is two levels deep and cannot become three. A worker returns to the session that called it; there is no worker-to-worker edge, no recursion, and no depth limit to tune, because depth is bounded by the capability grant rather than by a counter. Per-agent grants are in [`os/agents-manifest.md`](os/agents-manifest.md).
+
+The rest of the multi-agent surface, named against the pattern it corresponds to:
+
+| Pattern | Where it is here | Held in place by |
+|---|---|---|
+| **Orchestrator–worker** | one session dispatches to 10 named agents, each returning to it | tool grants — no agent tool on any worker |
+| **Handoff / peer network** | `SendMessage` between concurrent sessions sharing one working tree — the only lateral edge | convention, and it has failed |
+| **Evaluator–optimizer** | run → operator feedback → an imperative rule carrying the verbatim quote, read by the next run | procedure; the human half is skippable |
+| **Guardrail** | `Stop` refuses to end an unlogged session; `PreToolUse` interrupts destructive shared-state git | deterministic hooks, no model in the path |
+| **Blackboard** | `events.jsonl`, append-only, two independent consumers | file format |
+
+**What is deliberately absent, because the absences are the design.** There is no LLM router: dispatch is a literal enumerated matcher in `settings.json` naming all ten agents, so an agent not on that list is simply not logged rather than being handled by a model's guess. There is no cyclic graph, no agent-to-agent negotiation, and no scratchpad the workers write to concurrently. A graph framework — LangGraph and its class — buys conditional routing and cycles. Neither is a live constraint at ten workers and one router, and adopting one would put a Python runtime and a build step under a hook layer that deliberately has neither. The trigger for revisiting is written down rather than left to taste: **a worker that needs to hand off to another worker without returning first, or a route that cannot be expressed as an enumerated matcher.** Until one of those appears, a graph engine would be answering a question this system is not asking.
+
+The honest cost of that choice sits on the lateral edge. `SendMessage` is the one place where coordination is convention rather than capability, and it is where this system's documented failures cluster: contradictory confirmations on a shared directory move, a staging race, and a misdirected stop relay, all inside one afternoon. A supervisor topology with a deterministic router is not the sophisticated answer — it is the one whose failure modes are already understood.
+
 ### What ships here, and what doesn't
 
 `os/hooks/` contains **4 of the 9 wired hooks**, plus one operator-invoked maintenance script, plus the 14 shared modules they import — lifted unchanged from the working vault, comments and all.
@@ -173,13 +193,14 @@ Every claim in Part 1 maps to a file in this repository:
 | Real data and demo data resolve through the same code path | `src/data/vaultApi.js` (`import.meta.glob`, `USING_LOCAL_DATA`), `api/what-matters.js` (`loadJSON`) |
 | The human override outranks the model, and persists | `useTaskList` / `useDragReorder` in `src/App.jsx` |
 | An agent layer runs on lifecycle events with no human | `os/hooks/`, and `os/README.md` for what is and isn't wired |
+| The agent graph is two levels deep and cannot recurse | `os/agents-manifest.md` — no worker holds an agent-spawning tool |
 | The dashboard's agent feed has a producer in this repo | `os/hooks/log-agent-activity.ts` → `src/data/generated/agentActivity.json` |
 | Building on an unstable API was documented, not smoothed over | header comment of `os/hooks/log-agent-activity.ts` |
 | The privacy boundary is structural | `.gitignore`, and the absence of `scripts/sync-vault-data.mjs` |
 | Mocked panels admit they are mocked | Calendar and Mail panels in `src/App.jsx` |
 | Gaps are tracked rather than quietly dropped | Known gaps, below |
 
-What cannot be verified here, stated so it isn't discovered as an omission: the 5 unshipped hooks, the sync script, the vault itself, and the agent feedback loop's Log/Preferences notes are all private. The reasons are in [`os/README.md`](os/README.md) and Layer 3.
+What cannot be verified here, stated so it isn't discovered as an omission: the 5 unshipped hooks, `settings.json` (which holds the router matcher), the agent definition bodies, the sync script, the vault itself, and the agent feedback loop's Log/Preferences notes are all private. The reasons are in [`os/README.md`](os/README.md) and Layer 3.
 
 ---
 
