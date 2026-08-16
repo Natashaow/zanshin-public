@@ -32,12 +32,12 @@ This is the criterion I'd interrogate hardest if I were judging, so:
 - **Ranking is the feature.** Strip the model out and you have a task list — which is what I already had, and why I built this.
 - **The reasoning can't be templated.** Each shortlist item explains itself against goals and calendar context that change daily. There's no rule table that produces those sentences.
 - **It runs on live data.** `api/what-matters.js` reads the vault-synced JSON at request time and calls Claude server-side. It is not a recorded response replayed for a demo.
-- **It degrades honestly.** If the API is unreachable, the UI falls back to a captured real response and labels itself — it never fakes a live ranking. Panels that *are* mocked (Calendar, Mail) say so on screen.
+- **It degrades honestly.** If the API is unreachable, the UI falls back to a labeled offline ranking over the same data — it never fakes a live result. Panels that *are* mocked (Calendar, Mail) say so on screen.
 
 ## Architecture
 
 ```
-Obsidian vault  ──►  scripts/sync-vault-data.mjs  ──►  src/data/generated/*.json
+Obsidian vault  ──►  local sync step (not shipped — see below)  ──►  src/data/generated/*.json
                                                                 │
                                                                 ▼
                                               api/what-matters.js (Vercel function)
@@ -46,11 +46,11 @@ Obsidian vault  ──►  scripts/sync-vault-data.mjs  ──►  src/data/gene
                                               WhatMattersNow  ──►  ranked shortlist
 ```
 
-- `scripts/sync-vault-data.mjs` — pulls open tasks, goals, projects, and workspace stats out of the local vault. Enforces a **privacy boundary**: career, compensation, performance and raw-capture material never cross into the generated payload, via path prefixes plus a keyword backstop.
+- **The sync step** (*not shipped in this repo*) — pulls open tasks, goals, projects, and workspace stats out of the local vault. Enforces a **privacy boundary**: career, compensation, performance and raw-capture material never cross into the generated payload, via path prefixes plus a keyword backstop. It is excluded here because it reads one specific vault's folder layout, which is also what makes that boundary meaningful.
 - `api/what-matters.js` — Vercel serverless function. Keeps the API key server-side; `no-store` so a ranking is never edge-cached.
 - `src/App.jsx` — the app. Drag-to-reorder and the capture queue persist to `localStorage`.
 
-Full detail: [`ARCHITECTURE.md`](ARCHITECTURE.md). Engineering decisions and their rationale: [`memory-bank/DECISIONS.md`](memory-bank/DECISIONS.md). Product strategy: [`branding/Product Strategy Brief.md`](branding/Product%20Strategy%20Brief.md).
+Full detail: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Running locally
 
@@ -73,7 +73,7 @@ Everything downstream of that boundary — the ranking prompt, the serverless ca
 
 ## Honest status
 
-A real app I use, not a demo built for a deadline. Known gaps, tracked in [`memory-bank/PROGRESS.md`](memory-bank/PROGRESS.md):
+A real app I use, not a demo built for a deadline. Known gaps:
 
 - Calendar and Mail are seeded, not connected to Google — the UI says so rather than implying otherwise.
 - Promoting a task from deep in a 51-item list into the top three is impractical by drag alone; the AI ranking is currently the only thing that surfaces buried work.
@@ -89,4 +89,4 @@ Sole author: **Natasha Ow**. Licensed [MIT](LICENSE).
 
 Open-source dependencies, used under their respective licenses: React, React DOM, Vite, Tailwind CSS, ESLint, PostCSS, Autoprefixer. Hosted on Vercel. Ranking powered by the Anthropic Claude API.
 
-Built with Claude Code as a development assistant. All product, architecture, and design decisions are my own and are documented as dated decision records in `memory-bank/` and `branding/`.
+Built with Claude Code as a development assistant. All product, architecture, and design decisions are my own, recorded as dated decision records in the private working vault this was extracted from.

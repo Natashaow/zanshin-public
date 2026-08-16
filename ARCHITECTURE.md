@@ -12,7 +12,7 @@ A real, deployed, single-page Vite + React 19 app — not a mock prototype. Core
 - **Tailwind CSS 4.3**, CSS-first `@theme` block in `src/index.css` (no `tailwind.config.js`, no PostCSS config)
 - `lucide-react` (icons, used); `framer-motion`, `clsx`, `tailwind-merge` installed but not currently used in `App.jsx`
 - No router, no state library, no test runner
-- Deploy: Vercel, project linked (`.vercel/project.json`)
+- Deploy: Vercel (the serverless function in `api/` needs a Vercel-style host or `vercel dev`)
 
 ## Real file map
 
