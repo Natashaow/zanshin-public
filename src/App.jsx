@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Bot, CalendarClock, ChevronDown, ChevronRight, GripVertical, Inbox, Mail, Sparkles, Zap } from 'lucide-react'
+// Five header icons (Bot, CalendarClock, Inbox, Mail, Sparkles) were dropped with the
+// Panel header rewrite — the violet `>` marker does that job now. What remains is icons
+// doing work no glyph substitutes for: affordances and controls.
+import { ChevronDown, ChevronRight, GripVertical, Zap } from 'lucide-react'
 import {
   ACTIVE_PROJECTS,
   AGENT_ACTIVITY,
   CAPTURE_INBOX,
+  CURRENT_FOCUS_SEED,
   deriveCaptureDestinations,
   deriveLifeBuckets,
   EMAILS_TO_HANDLE_SEED,
   INITIAL_OPEN_LOOPS,
   OPEN_TASKS_SEED,
+  USING_LOCAL_DATA,
   WEEKLY_HIGHLIGHTS,
   VAULT_NAME,
   WHAT_MATTERS_FALLBACK,
@@ -24,16 +29,28 @@ const PROJECT_STATUS_STYLES = {
   done: 'text-slate-500 bg-slate-500/10',
 }
 
-function Panel({ title, icon: Icon, children, className = '', id }) {
+// Panel header per the Zanshin artifact: a violet `>` prefix instead of a lucide icon,
+// mono uppercase title, optional right-aligned count. The `>` does the icon's job — six
+// different glyphs read as six different kinds of thing, one prompt marker reads as one
+// system. `id` and `className` stay because scroll-and-flash depends on them.
+function Panel({ title, count, children, className = '', id }) {
   return (
     <section
       id={id}
       className={`rounded-xl bg-panel/90 p-5 shadow-lg shadow-black/40 transition-shadow ${className}`}
     >
       {title && (
-        <header className="mb-3 flex items-center gap-2">
-          {Icon && <Icon className="h-4 w-4 text-brand" aria-hidden="true" />}
-          <h2 className="font-structural text-sm font-medium tracking-wide text-slate-200">{title}</h2>
+        <header className="mb-3 flex items-baseline justify-between gap-2">
+          <h2 className="font-structural text-xs font-medium uppercase tracking-wider text-slate-200">
+            <span className="text-brand" aria-hidden="true">&gt;</span> {title}
+          </h2>
+          {/* A count is decoration next to a title that already names the thing, so it is
+              hidden from screen readers rather than announced as a stray number. */}
+          {count != null && (
+            <span className="font-structural text-xs text-slate-500" aria-hidden="true">
+              {count}
+            </span>
+          )}
         </header>
       )}
       {children}
@@ -349,7 +366,7 @@ function WhatMattersNow() {
   }, [])
 
   return (
-    <Panel title="What Matters Now" icon={Sparkles} className="border border-brand/20">
+    <Panel title="What Matters Now" id="panel-what-matters" className="border border-brand/20">
       <div className="mb-2 font-structural text-[10px] uppercase tracking-wider">
         {state.status === 'loading' ? (
           <span className="text-slate-500">Asking Claude…</span>
@@ -392,7 +409,7 @@ function timeAgo(iso) {
 function AgentActivity() {
   const { activeCount, recentLogs } = AGENT_ACTIVITY
   return (
-    <Panel title="Agent Activity" icon={Bot}>
+    <Panel title="Agent Activity" id="panel-agent-activity">
       <p className="mb-2 text-xs text-slate-400">
         {activeCount > 0 ? (
           <span className="text-brand">● {activeCount} active</span>
@@ -431,7 +448,7 @@ function AgentActivity() {
 // And a destination is an intent, not a filing: nothing here has touched the vault.
 function CaptureQueue({ items, onDismiss }) {
   return (
-    <Panel title="Captured" icon={Inbox}>
+    <Panel title="Captured" id="panel-captured">
       {items.length === 0 ? (
         <p className="text-sm text-slate-500">
           Nothing captured. Anything typed above lands here and survives a reload.
@@ -541,6 +558,123 @@ function WorkspaceTile({ workspace, expanded, onActivate }) {
   )
 }
 
+// The top altitude of the same question the page already answered twice lower down.
+// What Matters Now ranks today; Today's Missions is what gets ticked; this is the one
+// thing that matters *this period*. The page shipped the bottom two and omitted this,
+// which is why the header had nothing true to say.
+//
+// It reads the same `brain/North Star.md` § Current Focus that is auto-injected into
+// every agent session — so the human and the agents read one priority from one source.
+// No new data: northStarFocus was already resolved in vaultApi and never rendered.
+function CurrentFocus() {
+  const [primary, ...rest] = CURRENT_FOCUS_SEED
+
+  // Nothing to point at is a real state, not an error — an empty North Star should read
+  // as empty rather than render a heading over blank space.
+  if (!primary) return null
+
+  return (
+    <section aria-label="Current focus" className="mb-4 border-l-2 border-brand/60 pl-3">
+      <p className="font-structural text-[10px] uppercase tracking-wider text-slate-500">
+        {/* USING_LOCAL_DATA is the codebase's existing honesty switch: a demo must never
+            be mistaken for live state, so the label says which one this is. */}
+        North Star{USING_LOCAL_DATA ? '' : ' — sample focus, vault not connected'}
+      </p>
+      <p className="mt-0.5 text-sm font-medium text-slate-100">{primary.text}</p>
+      {rest.length > 0 && (
+        <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+          {rest.map((item) => (
+            <li key={item.id} className="text-[11px] text-slate-400">
+              {item.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+// Rail groups per the wireframe plan. These are NOT routes — each item scrolls to a panel
+// and flashes it, reusing the mechanism the Workspaces tiles already use. That keeps the
+// PRD's no-empty-router guardrail intact: there is no second view to land on, so there is
+// no route that can render nothing.
+const RAIL_GROUPS = [
+  {
+    label: 'Codex',
+    items: [
+      { id: 'panel-what-matters', label: "Today's Ops" },
+      { id: 'panel-active-arcs', label: 'Active Arcs' },
+      { id: 'panel-missions', label: 'Missions' },
+      { id: 'panel-open-threads', label: 'Open Threads' },
+    ],
+  },
+  {
+    label: 'Archive',
+    items: [
+      { id: 'panel-wrap-up', label: 'Debrief' },
+      { id: 'panel-om-weekly', label: 'Weekly' },
+    ],
+  },
+]
+
+function Rail({ onJump }) {
+  return (
+    <nav
+      aria-label="Panel shortcuts"
+      className="hidden shrink-0 lg:sticky lg:top-0 lg:block lg:h-screen lg:w-44 lg:overflow-y-auto lg:px-5 lg:py-5"
+    >
+      <p className="font-structural text-sm font-semibold tracking-widest">
+        <span className="text-slate-200">ZAN</span>
+        <span className="text-brand">SHIN</span>
+      </p>
+
+      {RAIL_GROUPS.map((group) => (
+        <div key={group.label} className="mt-6">
+          <p className="font-structural text-[10px] uppercase tracking-wider text-slate-500">
+            {group.label}
+          </p>
+          <ul className="mt-2 space-y-1">
+            {group.items.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => onJump(item.id)}
+                  className="motion-press flex w-full items-center gap-2 rounded py-1 text-left text-xs text-slate-400 transition-colors hover:text-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/40"
+                >
+                  <span className="text-brand/60" aria-hidden="true">●</span>
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {/* Said on the surface rather than only in this file's comments: a nav that looks like
+          routing but scrolls instead will be misread as broken navigation otherwise. */}
+      <p className="mt-8 text-[10px] leading-relaxed text-slate-600">
+        Rail items scroll and flash. They are not routes.
+      </p>
+    </nav>
+  )
+}
+
+// Every figure is derived from state already on screen. Nothing here is hand-maintained,
+// because a count that can disagree with the panel under it is worse than no count.
+function StatStrip({ stats }) {
+  return (
+    <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 font-structural text-[10px] uppercase tracking-wider text-slate-500">
+      {stats.map((stat, i) => (
+        <div key={stat.label} className="flex items-center gap-1.5">
+          {i > 0 && <span className="mr-2.5 text-slate-700" aria-hidden="true">·</span>}
+          <dt>{stat.label}</dt>
+          <dd className="text-slate-300">{stat.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
 function App() {
   const [capture, setCapture] = useState('')
   // Destination resets to Unsorted after every capture rather than staying sticky. Sticky
@@ -567,6 +701,16 @@ function App() {
   const toggleBucket = (name) =>
     setExpandedBuckets((prev) => ({ ...prev, [name]: !prev[name] }))
 
+  // One jump mechanism, two callers (Workspaces tiles and the rail). Extracted rather than
+  // duplicated so a rail item and a tile pointing at the same panel can never drift into
+  // behaving differently.
+  const focusPanel = (panelId) => {
+    const el = document.getElementById(panelId)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setFlashedPanel(panelId)
+  }
+
   // A "vault" tile expands in place; a "panel" tile scrolls to the panel it names and
   // flashes it, because that panel is already on screen and duplicating it into the tile
   // would mean two places showing the same state.
@@ -576,11 +720,18 @@ function App() {
       return
     }
     setExpandedWorkspace(null)
-    const el = document.getElementById(ws.panelId)
-    if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    setFlashedPanel(ws.panelId)
+    focusPanel(ws.panelId)
   }
+
+  const stats = [
+    { label: 'Active Arcs', value: ACTIVE_PROJECTS.length },
+    { label: 'Open Threads', value: openLoops.length - closedLoops },
+    { label: 'Missions', value: openTasks.filter((t) => !t.done).length },
+    // AGENT_ACTIVITY is an object ({ activeCount, recentLogs }), not an array — read the
+    // count it already publishes rather than deriving a second one that could disagree
+    // with the Agent Activity panel rendering the same field.
+    { label: 'Ops', value: AGENT_ACTIVITY.activeCount },
+  ]
 
   useEffect(() => {
     if (!flashedPanel) return
@@ -589,19 +740,28 @@ function App() {
   }, [flashedPanel])
 
   return (
-    <div className="min-h-screen bg-void text-slate-200">
+    <div className="flex min-h-screen bg-void text-slate-200">
+      <Rail onJump={focusPanel} />
+
+      <div className="min-w-0 flex-1">
       {/* Hero & capture */}
       <header className="bg-panel/60 px-4 py-5 sm:px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <Sparkles className="h-5 w-5 text-brand" aria-hidden="true" />
-            <div>
-              <h1 className="font-structural text-lg font-semibold tracking-tight text-slate-100 sm:text-xl">
-                Second Brain OS — Zanshin
-              </h1>
-              <p className="text-[11px] italic text-slate-500">The focus that stays after the strike.</p>
-            </div>
+          <p className="font-structural text-[10px] uppercase tracking-wider text-slate-500">
+            Zanshin — Second Brain OS
+          </p>
+          <div className="mb-4 mt-1">
+            {/* The artifact's headline was "…submitted to the OPC track" — deliberately not
+                ported. The event is closed, and a headline that sells the product is the
+                thing the rank-0 check was able to mistake for the product having a purpose.
+                What deserves the top of the page is the focus itself, rendered below. */}
+            <h1 className="font-structural text-lg font-semibold tracking-tight text-slate-100 sm:text-xl">
+              What deserves your attention, in order.
+            </h1>
+            <p className="text-[11px] italic text-slate-500">The focus that stays after the strike.</p>
           </div>
+
+          <CurrentFocus />
 
           {/* Destination is optional and defaults to Unsorted, so type-and-Enter is
               unchanged — the picker is skippable by never touching it. See CaptureQueue's
@@ -657,6 +817,10 @@ function App() {
               Capture
             </button>
           </form>
+
+          <div className="mt-4">
+            <StatStrip stats={stats} />
+          </div>
         </div>
       </header>
 
@@ -669,12 +833,12 @@ function App() {
           {/* Missions — every unchecked checkbox across 02 - Active Projects/, capped to
               three visible priorities (see MissionList). Freely reorderable (drag the grip
               handle) — the core value driver. */}
-          <Panel title="Today's Missions">
+          <Panel title="Today's Missions" id="panel-missions">
             <MissionList tasks={openTasks} onToggle={toggleOpenTask} onReorder={reorderOpenTasks} />
           </Panel>
 
           {/* Active Projects — "Active Arcs" per Zanshin panel-language convention (CLAUDE.md) */}
-          <Panel title="Active Arcs">
+          <Panel title="Active Arcs" id="panel-active-arcs">
             <table className="w-full table-fixed border-collapse">
               <tbody>
                 {ACTIVE_PROJECTS.map((project) => (
@@ -708,7 +872,7 @@ function App() {
           </Panel>
 
           {/* Workspaces — quick nav to the vault's workspace pockets */}
-          <Panel title="Workspaces">
+          <Panel title="Workspaces" id="panel-workspaces">
             <div className="grid gap-2 sm:grid-cols-3">
               {WORKSPACES_SEED.map((ws) => (
                 <WorkspaceTile
@@ -722,7 +886,7 @@ function App() {
           </Panel>
 
           {/* Life Buckets */}
-          <Panel title="Life Buckets">
+          <Panel title="Life Buckets" id="panel-life-buckets">
             <ul className="space-y-2">
               {lifeBuckets.map(({ name, members }) => (
                 <li key={name} className="rounded-xl bg-void/40">
@@ -760,7 +924,7 @@ function App() {
               vaultApi.js's comments: an unlabeled fake schedule is worse than no schedule,
               because it's the one panel you'd act on without checking. */}
           <div className="grid gap-4 sm:grid-cols-2">
-            <Panel title="Your Day" icon={CalendarClock}>
+            <Panel title="Your Day" id="panel-your-day">
               <p className="mb-2 font-structural text-[10px] uppercase tracking-wider text-slate-500">
                 ● Sample day — Calendar not connected
               </p>
@@ -781,7 +945,7 @@ function App() {
                 list doesn't match real behavior (branding/Product Strategy Brief.md,
                 "Non-obvious competition"). This panel's whole job is to say whether opening
                 Gmail is worth it right now. */}
-            <Panel title="Mail" icon={Mail}>
+            <Panel title="Mail" id="panel-mail">
               <p className="mb-2 font-structural text-[10px] uppercase tracking-wider text-slate-500">
                 ● Sample count — Gmail not connected
               </p>
@@ -801,7 +965,7 @@ function App() {
         <aside className="flex flex-col gap-6 lg:col-span-1">
           <CaptureQueue items={captures} onDismiss={dismissCapture} />
 
-          <Panel title="Open Threads">
+          <Panel title="Open Threads" id="panel-open-threads">
             <ul className="space-y-1">
               {openLoops.map((loop) => (
                 <li
@@ -847,7 +1011,7 @@ function App() {
             </dl>
           </Panel>
 
-          <Panel title="OM Weekly">
+          <Panel title="OM Weekly" id="panel-om-weekly">
             <ul className="space-y-2">
               {WEEKLY_HIGHLIGHTS.map((item, i) => (
                 <li key={i} className="text-xs leading-relaxed text-slate-400">
@@ -859,6 +1023,7 @@ function App() {
 
         </aside>
       </main>
+      </div>
     </div>
   )
 }
