@@ -292,11 +292,13 @@ function useTaskList(initialTasks, storageKey) {
 }
 
 // Quick capture — the starting-friction lever (see branding/Product Strategy Brief.md's
-// ADHD-executive-function reframe). Deliberately a *local* queue, not a vault write: the
-// deployed app is static + one serverless function and has no filesystem access to the
-// vault, so anything claiming to file a note straight into 02 - Active Projects/ would be
-// a lie. What this does guarantee is that a thought typed here survives a reload and stays
-// visible until it's explicitly cleared — which is the actual job (don't lose the thread).
+// ADHD-executive-function reframe). The local queue is still the ground truth here: every
+// capture lands in localStorage first and survives a reload regardless of anything else.
+// As of 2026-08-17 the dev server ALSO files each capture into the vault's 04 - Thinking/
+// via the capture-to-vault middleware (vite.config.js) — an item only claims "filed" after
+// a confirmed 200 with the written path. On the static deploy that fetch just fails and
+// nothing claims anything, which keeps the honesty rule intact: never *falsely* imply a
+// vault write. Contract: the vault's "Zanshin - Omnibox Quick-Capture Spec".
 function useCaptureQueue(storageKey) {
   const [items, setItems] = useState(() => {
     if (typeof window === 'undefined') return []
@@ -321,10 +323,11 @@ function useCaptureQueue(storageKey) {
   // at a project that may be archived out of ACTIVE_PROJECTS before the item is ever
   // cleared, and a queued thought rendering as a dangling id would be worse than useless.
   // Items written before routing existed simply carry no destination — handled at render.
-  const add = (text, destination) =>
+  const add = (text, destination) => {
+    const id = `c${Date.now()}`
     setItems((prev) => [
       {
-        id: `c${Date.now()}`,
+        id,
         text,
         ts: new Date().toISOString(),
         destinationId: destination?.id,
@@ -332,6 +335,23 @@ function useCaptureQueue(storageKey) {
       },
       ...prev,
     ])
+    // Queue first, file second: the item above is already persisted locally, so a slow,
+    // failed, or absent endpoint (static build, prod) loses nothing and changes no UI.
+    // Only a confirmed 200 with a path upgrades the item to "filed".
+    fetch('/api/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, destination }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.filed)
+          setItems((prev) => prev.map((i) => (i.id === id ? { ...i, filed: data.filed } : i)))
+      })
+      .catch(() => {
+        // endpoint unreachable — the local queue is the whole story, as before
+      })
+  }
 
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id))
 
@@ -470,6 +490,15 @@ function CaptureQueue({ items, onDismiss }) {
                         → {item.destination}
                       </span>
                     )}
+                    {/* Only a confirmed vault write earns this chip — `filed` is set
+                        exclusively from the middleware's 200 + returned path, so its
+                        presence is never a guess. Existing bg-brand/10 pill treatment,
+                        no new token. */}
+                    {item.filed && (
+                      <span className="rounded-full bg-brand/10 px-2 py-0.5 font-structural text-[10px] text-brand">
+                        ✓ filed → {item.filed}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
@@ -484,8 +513,9 @@ function CaptureQueue({ items, onDismiss }) {
             ))}
           </ul>
           <p className="mt-2 font-structural text-[10px] text-slate-500">
-            Held in this browser only — a → destination is where you meant it to go, not
-            where it is. File it into the vault to keep it.
+            ✓ filed means a real note now exists in the vault at that path. Anything
+            unmarked is held in this browser only — its → destination is where you meant
+            it to go, not where it is.
           </p>
         </>
       )}
