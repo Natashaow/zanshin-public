@@ -97,6 +97,8 @@ React 19 · Vite · Tailwind CSS 4 · Vercel Functions · Anthropic Claude API
 
 Sole author: **Natasha Ow**. Licensed [MIT](LICENSE).
 
-Open-source dependencies, used under their respective licenses: React, React DOM, Vite, Tailwind CSS, ESLint, PostCSS, Autoprefixer. Hosted on Vercel. Ranking powered by the Anthropic Claude API.
+Open-source dependencies, all used within their licenses: React 19 and React DOM (MIT), Vite (MIT), Tailwind CSS (MIT), `lucide-react` icons (ISC), `framer-motion` (MIT), `clsx` (MIT), `tailwind-merge` (MIT), ESLint (MIT), and the Schibsted Grotesk and JetBrains Mono variable fonts via `@fontsource` (SIL Open Font License 1.1). Hosting and serverless functions on Vercel. Ranking powered by the Anthropic Claude API.
+
+**Third-party content:** none. No stock imagery, no purchased assets, no scraped data. The demo data in `src/data/generated/` is synthetic and written for this submission.
 
 Built with Claude Code as a development assistant. All product, architecture, and design decisions are my own, recorded as dated decision records in the private working vault this was extracted from.
