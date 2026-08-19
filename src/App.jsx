@@ -828,7 +828,7 @@ function App() {
 
       <div className="min-w-0 flex-1">
       {/* Hero & capture */}
-      <header className="bg-panel/60 px-4 py-5 sm:px-6">
+      <header className="px-4 py-5 sm:px-6">
         <div className="mx-auto max-w-7xl">
           <p className="font-structural text-[10px] uppercase tracking-wider text-slate-500">
             Zanshin — Second Brain OS
