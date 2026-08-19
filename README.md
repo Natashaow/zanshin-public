@@ -42,16 +42,20 @@ This is the criterion I'd interrogate hardest if I were judging, so:
 ## Architecture
 
 ```
-Obsidian vault  ──►  local sync step (not shipped — see below)  ──►  src/data/generated/*.json
-                                                                │
-                                                                ▼
-                                              api/what-matters.js (Vercel function)
-                                                    │  server-side Claude call
-                                                    ▼
-                                              WhatMattersNow  ──►  ranked shortlist
+Obsidian vault  ──►  local sync step (not shipped — see below)  ──►  src/data/local/*.json
+                         │                                           gitignored, real when present
+                         │
+                         └──────────────────────────────────────►  src/data/generated/*.json
+                                                                     tracked, synthetic fallback
+                                                                     │
+                                                                     ▼
+                                                   api/what-matters.js (Vercel function)
+                                                         │  server-side Claude call
+                                                         ▼
+                                                   WhatMattersNow  ──►  ranked shortlist
 ```
 
-- **The sync step** (*not shipped in this repo*) — pulls open tasks, goals, projects, and workspace stats out of the local vault. Enforces a **privacy boundary**: career, compensation, performance and raw-capture material never cross into the generated payload, via path prefixes plus a keyword backstop. It is excluded here because it reads one specific vault's folder layout, which is also what makes that boundary meaningful.
+- **The sync step** (*not shipped in this repo*) — pulls open tasks, goals, projects, and workspace stats out of the local vault. On the author's machine it writes gitignored `src/data/local/*.json`; this public repo keeps tracked synthetic fixtures in `src/data/generated/*.json` so a fresh clone still runs. The sync enforces a **privacy boundary**: career, compensation, performance and raw-capture material never cross into the local payload, via path prefixes plus a keyword backstop. It is excluded here because it reads one specific vault's folder layout, which is also what makes that boundary meaningful.
 - `api/what-matters.js` — Vercel serverless function. Keeps the API key server-side; `no-store` so a ranking is never edge-cached.
 - `src/App.jsx` — the app. Drag-to-reorder and the capture queue persist to `localStorage`.
 - **[`os/`](os/) — the agent layer.** Five hooks that run on the agent runtime's lifecycle events with no human in the loop: agent activity recorded to the feed this dashboard renders, note writes routed and checked at write time, destructive git operations intercepted before they run. `os/hooks/log-agent-activity.ts` is the producer for `src/data/generated/agentActivity.json` — the panel and the thing that fills it are both in this repo. Not wired from a clone (`settings.json` isn't shipped); it's readable evidence, not an install. See [`os/README.md`](os/README.md).
