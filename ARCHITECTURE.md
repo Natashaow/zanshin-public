@@ -245,9 +245,10 @@ To run it against a real Obsidian vault you supply your own sync step that write
 
 ## Real panel list (as of 2026-08-19)
 
-Three hash-routed tabs (`useHashRoute` in `App.jsx`, no dependency). The 2026-08-15 router decline was reversed 2026-08-19 (vault Decision Log): the post-freeze North Star names "no tab router" the first daily-driver gap. The no-empty-router guardrail survives as an admission rule — a view earns a route only when it has real content, so the reconciliation IA's remaining tabs (Taste, Ideas, Finance, Learn) wait on data. Header (hero, quick capture, stats, mobile tab pills) is global to all tabs.
+Four hash-routed tabs (`useHashRoute` in `App.jsx`, no dependency). The 2026-08-15 router decline was reversed 2026-08-19 (vault Decision Log): the post-freeze North Star names "no tab router" the first daily-driver gap. The no-empty-router guardrail survives as an admission rule — a view earns a route only when it has real content. Calendar/Mail earned the Day tab by Natasha's direct call on 2026-08-19; the reconciliation IA's remaining tabs (Taste, Ideas, Finance, Learn) wait on data. Header (hero, quick capture, stats, mobile tab pills) is global to all tabs.
 
-- **Dashboard** (`#/`), 2-column grid (`lg:grid-cols-[1fr_280px]`) — center: What Matters Now, Today's Missions, Active Arcs, Workspaces, Life Buckets, Your Day + Mail (paired row); sidebar: Captured, Open Threads.
+- **Dashboard** (`#/`), 2-column grid (`lg:grid-cols-[1fr_280px]`) — center: What Matters Now, Today's Missions, Active Arcs, Workspaces, Life Buckets; sidebar: Captured, Open Threads.
+- **Day** (`#/day`) — Your Day + Mail, still seeded/mocked and labeled as not connected.
 - **Agents** (`#/agents`) — Agent Activity, still read-only display.
 - **Review** (`#/review`) — Wrap Up, OM Weekly.
 
@@ -271,10 +272,10 @@ Changed 2026-08-15: `Captured` is new (renders the quick-capture queue, which pr
 - **2026-08-15** — `VIEWS_SEED`, `LINKS_SEED`, `CURRENT_FOCUS_SEED`, and `SKILL_CHEATSHEET` are exported from `vaultApi.js` but not imported or rendered anywhere in `App.jsx` — orphaned exports. Flagged, not removed; unclear if they're pending UI or dead.
 - **2026-08-15** — No rendered urgency badge (`task.urgency` is stored, never styled). See `Visual-UI-Spec.md`.
 - **2026-08-15** — `ACTIVE_PROJECTS` carries no real `lifeBucket`/`dueDate` data yet, so `deriveLifeBuckets()` puts everything in "Uncategorized" and the Active Arcs table's lifeBucket/dueDate cells render empty. Honest gap, not a bug.
-- **2026-08-15** — `EMAILS_TO_HANDLE_SEED` and `YOUR_DAY_SEED` are still fully mocked (not live Gmail/Calendar reads). Labeled as mocked in the UI itself, not only in code comments.
+- **2026-08-19** — `EMAILS_TO_HANDLE_SEED` and `YOUR_DAY_SEED` are still fully mocked (not live Gmail/Calendar reads), but now live in the Day tab (`#/day`) by Natasha's call. Labeled as mocked in the UI itself, not only in code comments.
 - ~~**2026-08-15** — Capture routing is unsolved: a capture cannot reach the vault from the deployed app (no filesystem access).~~ Partially closed 2026-08-17 — local `vite dev` now has a dev-only `POST /api/capture` filesystem adapter that writes dated inbox notes into `04 - Thinking/`; static deploys still cannot write to the vault and correctly fall back to `localStorage`.
 - ~~**2026-08-15** — Quick-capture input sets local state that's never read elsewhere.~~ Closed same day — persisted queue + `Captured` panel.
-- ~~**2026-08-15** — Workspaces tiles aren't wired to navigation (no router).~~ Closed same day — tiles expand in place with `obsidian://open` deep links; the router was gate-checked and deliberately declined. **The decline itself was reversed 2026-08-19** (North Star post-freeze re-rank named it the first daily-driver gap): a three-tab hash router now exists, content-gated per the guardrail.
+- ~~**2026-08-15** — Workspaces tiles aren't wired to navigation (no router).~~ Closed same day — tiles expand in place with `obsidian://open` deep links; the router was gate-checked and deliberately declined. **The decline itself was reversed 2026-08-19** (North Star post-freeze re-rank named it the first daily-driver gap): a four-tab hash router now exists, content-gated per the guardrail.
 
 ## Related
 

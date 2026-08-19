@@ -627,12 +627,14 @@ function CurrentFocus() {
 // Tab router — reverses the 2026-08-15 gate-check decline (brain/Decision Log,
 // 2026-08-19 entry): the post-freeze North Star names "no tab router" the first
 // daily-driver gap. The no-empty-router guardrail survives as a rule about tabs rather
-// than a ban on them: a view only earns a route once it has real content to land on,
-// which is why only these three exist — the reconciliation IA's remaining tabs (Taste,
+// than a ban on them: a view only earns a route once it has real content to land on.
+// Calendar/Mail earn "Day" because they are daily-driver context even while their feeds
+// are still mocked and labeled as such. The reconciliation IA's remaining tabs (Taste,
 // Ideas, Finance, Learn) wait on data. Hash-based, zero dependencies; the URL hash is
 // the single source of truth, so deep links and the back button work for free.
 const TABS = [
   { id: 'dashboard', hash: '#/', label: 'Dashboard' },
+  { id: 'day', hash: '#/day', label: 'Day' },
   { id: 'agents', hash: '#/agents', label: 'Agents' },
   { id: 'review', hash: '#/review', label: 'Review' },
 ]
@@ -815,6 +817,11 @@ function App() {
     return () => clearTimeout(timer)
   }, [flashedPanel])
 
+  useEffect(() => {
+    const activeMain = document.querySelector(`main[data-route="${tab}"]`)
+    activeMain?.focus({ preventScroll: true })
+  }, [tab])
+
   return (
     <div className="flex min-h-screen bg-void text-slate-200">
       <Rail tab={tab} onNavigate={navigateTab} onJump={focusPanel} />
@@ -898,7 +905,7 @@ function App() {
             <StatStrip stats={stats} />
           </div>
 
-          {/* The rail is hidden below lg, so small screens get the same three views as a
+          {/* The rail is hidden below lg, so small screens get the same views as a
               pill row. 44px-min hit area per the mobile touch-target convention. */}
           <nav aria-label="Views" className="mt-4 flex gap-1.5 lg:hidden">
             {TABS.map((t) => (
@@ -907,7 +914,7 @@ function App() {
                 type="button"
                 onClick={() => navigateTab(t.id)}
                 aria-current={tab === t.id ? 'page' : undefined}
-                className={`rounded-full px-4 py-2.5 font-structural text-[11px] uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 ${
+                className={`min-h-11 rounded-full px-4 py-2.5 font-structural text-[11px] uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 ${
                   tab === t.id ? 'bg-brand/15 text-brand' : 'bg-white/5 text-slate-400'
                 }`}
               >
@@ -919,7 +926,12 @@ function App() {
       </header>
 
       {tab === 'dashboard' && (
-      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[1fr_280px]">
+      <main
+        data-route="dashboard"
+        tabIndex={-1}
+        className="mx-auto grid max-w-7xl gap-6 px-4 py-5 focus:outline-none sm:px-6 lg:grid-cols-[1fr_280px]"
+      >
+        <h1 className="sr-only">Dashboard</h1>
         {/* Center column */}
         <div className="flex flex-col gap-6 lg:col-span-1">
           {/* AI-necessity leg: real vault data ranked by an actual Claude call */}
@@ -1022,46 +1034,6 @@ function App() {
             </ul>
           </Panel>
 
-          {/* Your Day + Mail row. Both read mocked seeds — Calendar and Gmail are not
-              connected. Labeled as such on the panels themselves rather than only in
-              vaultApi.js's comments: an unlabeled fake schedule is worse than no schedule,
-              because it's the one panel you'd act on without checking. */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Panel title="Your Day" id="panel-your-day">
-              <p className="mb-2 font-structural text-[10px] uppercase tracking-wider text-slate-500">
-                ● Sample day — Calendar not connected
-              </p>
-              <ul className="space-y-2">
-                {YOUR_DAY_SEED.map((event) => (
-                  <li
-                    key={event.id}
-                    className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm hover:bg-white/5"
-                  >
-                    <span className="text-slate-200">{event.title}</span>
-                    <span className="text-xs text-brand">{event.time}</span>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-
-            {/* Count, not a browsable inbox — Gmail is actively avoided, so a full message
-                list doesn't match real behavior (branding/Product Strategy Brief.md,
-                "Non-obvious competition"). This panel's whole job is to say whether opening
-                Gmail is worth it right now. */}
-            <Panel title="Mail" id="panel-mail">
-              <p className="mb-2 font-structural text-[10px] uppercase tracking-wider text-slate-500">
-                ● Sample count — Gmail not connected
-              </p>
-              <div className="rounded-xl bg-void/40 p-3 text-center">
-                <p className="text-3xl font-semibold text-brand">{unhandledEmails.length}</p>
-                <p className="mt-1 text-[11px] text-slate-400">
-                  waiting on a reply from{' '}
-                  {new Set(unhandledEmails.map((e) => e.sender)).size} sender
-                  {new Set(unhandledEmails.map((e) => e.sender)).size === 1 ? '' : 's'}
-                </p>
-              </div>
-            </Panel>
-          </div>
         </div>
 
         {/* Right sidebar — workspace pockets */}
@@ -1103,11 +1075,65 @@ function App() {
       </main>
       )}
 
+      {/* Day view — Calendar/Mail get a route because Natasha confirmed they can be their
+          own tab. Both still read mocked seeds and say so on-screen; the route changes
+          information architecture, not integration truth. */}
+      {tab === 'day' && (
+        <main
+          data-route="day"
+          tabIndex={-1}
+          className="mx-auto max-w-7xl px-4 py-5 focus:outline-none sm:px-6"
+        >
+          <h1 className="sr-only">Day</h1>
+          <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2">
+            <Panel title="Your Day" id="panel-your-day">
+              <p className="mb-2 font-structural text-[10px] uppercase tracking-wider text-slate-500">
+                ● Sample day — Calendar not connected
+              </p>
+              <ul className="space-y-2">
+                {YOUR_DAY_SEED.map((event) => (
+                  <li
+                    key={event.id}
+                    className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm hover:bg-white/5"
+                  >
+                    <span className="text-slate-200">{event.title}</span>
+                    <span className="text-xs text-brand">{event.time}</span>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+
+            {/* Count, not a browsable inbox — Gmail is actively avoided, so a full message
+                list doesn't match real behavior (branding/Product Strategy Brief.md,
+                "Non-obvious competition"). This panel's whole job is to say whether opening
+                Gmail is worth it right now. */}
+            <Panel title="Mail" id="panel-mail">
+              <p className="mb-2 font-structural text-[10px] uppercase tracking-wider text-slate-500">
+                ● Sample count — Gmail not connected
+              </p>
+              <div className="rounded-xl bg-void/40 p-3 text-center">
+                <p className="text-3xl font-semibold text-brand">{unhandledEmails.length}</p>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  waiting on a reply from{' '}
+                  {new Set(unhandledEmails.map((e) => e.sender)).size} sender
+                  {new Set(unhandledEmails.map((e) => e.sender)).size === 1 ? '' : 's'}
+                </p>
+              </div>
+            </Panel>
+          </div>
+        </main>
+      )}
+
       {/* Agents view — the read-only agent feed, promoted from a sidebar panel to its own
           route. Still display-only: the control plane (approve/reject/kill) lives in a
           separate app, see ARCHITECTURE.md. */}
       {tab === 'agents' && (
-        <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
+        <main
+          data-route="agents"
+          tabIndex={-1}
+          className="mx-auto max-w-7xl px-4 py-5 focus:outline-none sm:px-6"
+        >
+          <h1 className="sr-only">Agents</h1>
           <div className="mx-auto max-w-2xl">
             <AgentActivity />
           </div>
@@ -1116,7 +1142,12 @@ function App() {
 
       {/* Review view — the former Archive rail group (Debrief, Weekly) as a real route. */}
       {tab === 'review' && (
-        <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
+        <main
+          data-route="review"
+          tabIndex={-1}
+          className="mx-auto max-w-7xl px-4 py-5 focus:outline-none sm:px-6"
+        >
+          <h1 className="sr-only">Review</h1>
           <div className="mx-auto grid max-w-2xl gap-6">
             <Panel title="Wrap Up" id="panel-wrap-up">
               <dl className="grid grid-cols-2 gap-3">

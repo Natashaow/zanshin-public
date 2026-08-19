@@ -28,7 +28,7 @@ Here is the top of the offline ranking that ships with the demo fixtures — clo
 
 Those two sentences are the product. Nothing in the task text says these are related, or that the second one gates the first — that connection has to be reasoned from forty tasks read against the stated goals. It is the join a list view cannot make, and it is what the live call produces against a real vault.
 
-Everything else exists to serve that: today's missions (capped at three on purpose), active projects, workspaces, life buckets, a quick-capture queue, and an agent-activity feed.
+Everything else exists to serve that: today's missions (capped at three on purpose), active projects, workspaces, life buckets, a quick-capture queue, a Day tab for Calendar/Mail context, and an agent-activity feed.
 
 ## Why the AI is load-bearing
 
