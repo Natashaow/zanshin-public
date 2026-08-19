@@ -1,6 +1,6 @@
 # Zanshin — Second Brain OS
 
-**A local-first personal operating system built on Obsidian, Claude Code, and a systematic token architecture.**
+**A daily-driver dashboard for a personal knowledge vault, where an LLM decides what actually matters right now.**
 
 🔗 **No hosted demo right now** — the previous deployment was retired and the URL is dead. Run it locally in two commands: [Running locally](#running-locally).
 
@@ -28,7 +28,7 @@ Here is the top of the offline ranking that ships with the demo fixtures — clo
 
 Those two sentences are the product. Nothing in the task text says these are related, or that the second one gates the first — that connection has to be reasoned from forty tasks read against the stated goals. It is the join a list view cannot make, and it is what the live call produces against a real vault.
 
-Everything else exists to serve that: today's missions (capped at three on purpose), active projects, workspaces, life buckets, quick capture, calendar/mail context, and an agent-activity feed.
+Everything else exists to serve that: today's missions (capped at three on purpose), active projects, workspaces, life buckets, a quick-capture queue, a Day tab for Calendar/Mail context, and an agent-activity feed.
 
 ## Why the AI is load-bearing
 
@@ -42,17 +42,27 @@ This is the criterion I'd interrogate hardest if I were judging, so:
 ## Architecture
 
 ```
-Obsidian vault  ──►  local sync step (not shipped)  ──►  src/data/local/*.json (real)
-                                                       │  src/data/generated/*.json (tracked fallback)
-                                                       ▼
-                                     api/what-matters.js (Vercel function, server-side Claude call)
-                                                       ▼
-                                     WhatMattersNow  ──►  ranked shortlist
+Obsidian vault  ──►  local sync step (not shipped — see below)  ──►  src/data/local/*.json
+                         │                                           gitignored, real when present
+                         │
+                         └──────────────────────────────────────►  src/data/generated/*.json
+                                                                     tracked, synthetic fallback
+                                                                     │
+                                                                     ▼
+                                                   api/what-matters.js (Vercel function)
+                                                         │  server-side Claude call
+                                                         ▼
+                                                   WhatMattersNow  ──►  ranked shortlist
 ```
 
-`src/App.jsx` is the app. `os/` is the agent layer — hooks that run on the agent runtime's lifecycle events with no human in the loop, shipped as readable evidence rather than something a clone can run. The vault itself never leaves this machine; the sync step drops career, financial and raw-capture material before anything is written, and the one outbound call per request carries only open-task and goal lines to the Anthropic API.
+- **The sync step** (*not shipped in this repo*) — pulls open tasks, goals, projects, and workspace stats out of the local vault. On the author's machine it writes gitignored `src/data/local/*.json`; this public repo keeps tracked synthetic fixtures in `src/data/generated/*.json` so a fresh clone still runs. The sync enforces a **privacy boundary**: career, compensation, performance and raw-capture material never cross into the local payload, via path prefixes plus a keyword backstop. It is excluded here because it reads one specific vault's folder layout, which is also what makes that boundary meaningful.
+- `api/what-matters.js` — Vercel serverless function. Keeps the API key server-side; `no-store` so a ranking is never edge-cached.
+- `src/App.jsx` — the app. Drag-to-reorder and the capture queue persist to `localStorage`.
+- **[`os/`](os/) — the agent layer.** Five hooks that run on the agent runtime's lifecycle events with no human in the loop: agent activity recorded to the feed this dashboard renders, note writes routed and checked at write time, destructive git operations intercepted before they run. `os/hooks/log-agent-activity.ts` is the producer for `src/data/generated/agentActivity.json` — the panel and the thing that fills it are both in this repo. Not wired from a clone (`settings.json` isn't shipped); it's readable evidence, not an install. See [`os/README.md`](os/README.md).
 
-Both docs are the living source of truth and are kept current, not this file — read them for anything more specific than the paragraph above: [`ARCHITECTURE.md`](ARCHITECTURE.md) (layers, data flow, file map) and [`os/README.md`](os/README.md) (the agent layer).
+**What actually leaves this machine:** the vault never does. One outbound call per request carries the open-task lines and the North Star focus lines to the Anthropic API, stores nothing, and returns a ranking. Career, financial and raw-capture material is dropped at the sync boundary before any file is written. The full table is in [`ARCHITECTURE.md`](ARCHITECTURE.md#what-crosses-the-machine-boundary).
+
+Full detail — the four layers, the boundary, and a claim-by-claim map of which file proves what: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Running locally
 
