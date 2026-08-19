@@ -624,33 +624,53 @@ function CurrentFocus() {
   )
 }
 
-// Rail groups per the wireframe plan. These are NOT routes — each item scrolls to a panel
-// and flashes it, reusing the mechanism the Workspaces tiles already use. That keeps the
-// PRD's no-empty-router guardrail intact: there is no second view to land on, so there is
-// no route that can render nothing.
-const RAIL_GROUPS = [
-  {
-    label: 'Codex',
-    items: [
-      { id: 'panel-what-matters', label: "Today's Ops" },
-      { id: 'panel-active-arcs', label: 'Active Arcs' },
-      { id: 'panel-missions', label: 'Missions' },
-      { id: 'panel-open-threads', label: 'Open Threads' },
-    ],
-  },
-  {
-    label: 'Archive',
-    items: [
-      { id: 'panel-wrap-up', label: 'Debrief' },
-      { id: 'panel-om-weekly', label: 'Weekly' },
-    ],
-  },
+// Tab router — reverses the 2026-08-15 gate-check decline (brain/Decision Log,
+// 2026-08-19 entry): the post-freeze North Star names "no tab router" the first
+// daily-driver gap. The no-empty-router guardrail survives as a rule about tabs rather
+// than a ban on them: a view only earns a route once it has real content to land on,
+// which is why only these three exist — the reconciliation IA's remaining tabs (Taste,
+// Ideas, Finance, Learn) wait on data. Hash-based, zero dependencies; the URL hash is
+// the single source of truth, so deep links and the back button work for free.
+const TABS = [
+  { id: 'dashboard', hash: '#/', label: 'Dashboard' },
+  { id: 'agents', hash: '#/agents', label: 'Agents' },
+  { id: 'review', hash: '#/review', label: 'Review' },
 ]
 
-function Rail({ onJump }) {
+const tabFromHash = (hash) => TABS.find((t) => t.hash === hash)?.id ?? 'dashboard'
+
+function useHashRoute() {
+  const [tab, setTab] = useState(() =>
+    typeof window === 'undefined' ? 'dashboard' : tabFromHash(window.location.hash),
+  )
+  useEffect(() => {
+    const onHashChange = () => setTab(tabFromHash(window.location.hash))
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+  // Navigation writes the hash and lets the hashchange listener update state — one
+  // source of truth, so a hand-edited URL and a clicked tab can never disagree.
+  const navigate = (id) => {
+    const target = TABS.find((t) => t.id === id)
+    if (target) window.location.hash = target.hash
+  }
+  return [tab, navigate]
+}
+
+// Codex shortcuts still scroll and flash — same mechanism the Workspaces tiles use.
+// They only render on the Dashboard view, where their targets exist. The former
+// Archive group (Debrief, Weekly) became the Review tab when the router landed.
+const CODEX_SHORTCUTS = [
+  { id: 'panel-what-matters', label: "Today's Ops" },
+  { id: 'panel-active-arcs', label: 'Active Arcs' },
+  { id: 'panel-missions', label: 'Missions' },
+  { id: 'panel-open-threads', label: 'Open Threads' },
+]
+
+function Rail({ tab, onNavigate, onJump }) {
   return (
     <nav
-      aria-label="Panel shortcuts"
+      aria-label="Views and panel shortcuts"
       className="hidden shrink-0 lg:sticky lg:top-0 lg:block lg:h-screen lg:w-44 lg:overflow-y-auto lg:px-5 lg:py-5"
     >
       <p className="font-structural text-sm font-semibold tracking-widest">
@@ -658,13 +678,38 @@ function Rail({ onJump }) {
         <span className="text-brand">SHIN</span>
       </p>
 
-      {RAIL_GROUPS.map((group) => (
-        <div key={group.label} className="mt-6">
+      <div className="mt-6">
+        <p className="font-structural text-[10px] uppercase tracking-wider text-slate-500">
+          Views
+        </p>
+        <ul className="mt-2 space-y-1">
+          {TABS.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => onNavigate(t.id)}
+                aria-current={tab === t.id ? 'page' : undefined}
+                className={`motion-press flex w-full items-center gap-2 rounded py-1 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/40 ${
+                  tab === t.id ? 'text-brand' : 'text-slate-400 hover:text-slate-100'
+                }`}
+              >
+                <span className={tab === t.id ? 'text-brand' : 'text-brand/60'} aria-hidden="true">
+                  {tab === t.id ? '●' : '○'}
+                </span>
+                {t.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {tab === 'dashboard' && (
+        <div className="mt-6">
           <p className="font-structural text-[10px] uppercase tracking-wider text-slate-500">
-            {group.label}
+            Codex
           </p>
           <ul className="mt-2 space-y-1">
-            {group.items.map((item) => (
+            {CODEX_SHORTCUTS.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -678,12 +723,12 @@ function Rail({ onJump }) {
             ))}
           </ul>
         </div>
-      ))}
+      )}
 
-      {/* Said on the surface rather than only in this file's comments: a nav that looks like
-          routing but scrolls instead will be misread as broken navigation otherwise. */}
+      {/* Said on the surface rather than only in this file's comments: two nav mechanisms
+          side by side will be misread as one broken one otherwise. */}
       <p className="mt-8 text-[10px] leading-relaxed text-slate-600">
-        Rail items scroll and flash. They are not routes.
+        Views navigate — the URL remembers. Codex items scroll and flash.
       </p>
     </nav>
   )
@@ -706,6 +751,7 @@ function StatStrip({ stats }) {
 }
 
 function App() {
+  const [tab, navigateTab] = useHashRoute()
   const [capture, setCapture] = useState('')
   // Destination resets to Unsorted after every capture rather than staying sticky. Sticky
   // would save a click on a burst into one project, but the cost of a wrong sticky value
@@ -771,7 +817,7 @@ function App() {
 
   return (
     <div className="flex min-h-screen bg-void text-slate-200">
-      <Rail onJump={focusPanel} />
+      <Rail tab={tab} onNavigate={navigateTab} onJump={focusPanel} />
 
       <div className="min-w-0 flex-1">
       {/* Hero & capture */}
@@ -851,9 +897,28 @@ function App() {
           <div className="mt-4">
             <StatStrip stats={stats} />
           </div>
+
+          {/* The rail is hidden below lg, so small screens get the same three views as a
+              pill row. 44px-min hit area per the mobile touch-target convention. */}
+          <nav aria-label="Views" className="mt-4 flex gap-1.5 lg:hidden">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => navigateTab(t.id)}
+                aria-current={tab === t.id ? 'page' : undefined}
+                className={`rounded-full px-4 py-2.5 font-structural text-[11px] uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 ${
+                  tab === t.id ? 'bg-brand/15 text-brand' : 'bg-white/5 text-slate-400'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
         </div>
       </header>
 
+      {tab === 'dashboard' && (
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[1fr_280px]">
         {/* Center column */}
         <div className="flex flex-col gap-6 lg:col-span-1">
@@ -863,12 +928,20 @@ function App() {
           {/* Missions — every unchecked checkbox across 02 - Active Projects/, capped to
               three visible priorities (see MissionList). Freely reorderable (drag the grip
               handle) — the core value driver. */}
-          <Panel title="Today's Missions" id="panel-missions">
+          <Panel
+            title="Today's Missions"
+            id="panel-missions"
+            className={flashedPanel === 'panel-missions' ? 'ring-2 ring-brand' : ''}
+          >
             <MissionList tasks={openTasks} onToggle={toggleOpenTask} onReorder={reorderOpenTasks} />
           </Panel>
 
           {/* Active Projects — "Active Arcs" per Zanshin panel-language convention (CLAUDE.md) */}
-          <Panel title="Active Arcs" id="panel-active-arcs">
+          <Panel
+            title="Active Arcs"
+            id="panel-active-arcs"
+            className={flashedPanel === 'panel-active-arcs' ? 'ring-2 ring-brand' : ''}
+          >
             <table className="w-full table-fixed border-collapse">
               <tbody>
                 {ACTIVE_PROJECTS.map((project) => (
@@ -995,7 +1068,11 @@ function App() {
         <aside className="flex flex-col gap-6 lg:col-span-1">
           <CaptureQueue items={captures} onDismiss={dismissCapture} />
 
-          <Panel title="Open Threads" id="panel-open-threads">
+          <Panel
+            title="Open Threads"
+            id="panel-open-threads"
+            className={flashedPanel === 'panel-open-threads' ? 'ring-2 ring-brand' : ''}
+          >
             <ul className="space-y-1">
               {openLoops.map((loop) => (
                 <li
@@ -1022,37 +1099,50 @@ function App() {
             </ul>
           </Panel>
 
-          <AgentActivity />
-
-          <Panel
-            title="Wrap Up"
-            id="panel-wrap-up"
-            className={flashedPanel === 'panel-wrap-up' ? 'ring-2 ring-brand' : ''}
-          >
-            <dl className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-void/40 p-3 text-center">
-                <dt className="font-structural text-[10px] uppercase tracking-wider text-slate-400">Closed loops</dt>
-                <dd className="text-2xl font-semibold text-slate-100">{closedLoops}</dd>
-              </div>
-              <div className="rounded-xl bg-void/40 p-3 text-center">
-                <dt className="font-structural text-[10px] uppercase tracking-wider text-slate-400">Active projects</dt>
-                <dd className="text-2xl font-semibold text-brand">{ACTIVE_PROJECTS.length}</dd>
-              </div>
-            </dl>
-          </Panel>
-
-          <Panel title="OM Weekly" id="panel-om-weekly">
-            <ul className="space-y-2">
-              {WEEKLY_HIGHLIGHTS.map((item, i) => (
-                <li key={i} className="text-xs leading-relaxed text-slate-400">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </Panel>
-
         </aside>
       </main>
+      )}
+
+      {/* Agents view — the read-only agent feed, promoted from a sidebar panel to its own
+          route. Still display-only: the control plane (approve/reject/kill) lives in a
+          separate app, see ARCHITECTURE.md. */}
+      {tab === 'agents' && (
+        <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
+          <div className="mx-auto max-w-2xl">
+            <AgentActivity />
+          </div>
+        </main>
+      )}
+
+      {/* Review view — the former Archive rail group (Debrief, Weekly) as a real route. */}
+      {tab === 'review' && (
+        <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
+          <div className="mx-auto grid max-w-2xl gap-6">
+            <Panel title="Wrap Up" id="panel-wrap-up">
+              <dl className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-void/40 p-3 text-center">
+                  <dt className="font-structural text-[10px] uppercase tracking-wider text-slate-400">Closed loops</dt>
+                  <dd className="text-2xl font-semibold text-slate-100">{closedLoops}</dd>
+                </div>
+                <div className="rounded-xl bg-void/40 p-3 text-center">
+                  <dt className="font-structural text-[10px] uppercase tracking-wider text-slate-400">Active projects</dt>
+                  <dd className="text-2xl font-semibold text-brand">{ACTIVE_PROJECTS.length}</dd>
+                </div>
+              </dl>
+            </Panel>
+
+            <Panel title="OM Weekly" id="panel-om-weekly">
+              <ul className="space-y-2">
+                {WEEKLY_HIGHLIGHTS.map((item, i) => (
+                  <li key={i} className="text-xs leading-relaxed text-slate-400">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          </div>
+        </main>
+      )}
       </div>
     </div>
   )

@@ -211,14 +211,14 @@ What cannot be verified here, stated so it isn't discovered as an omission: the 
 
 ## What this is
 
-A real, deployed, single-page Vite + React 19 app — not a mock prototype. Core value driver: freely reorderable drag-and-drop task lists, persisted to `localStorage`. No backend beyond one serverless function (`api/what-matters.js`), no router, no state library.
+A real, deployed, single-page Vite + React 19 app — not a mock prototype. Core value driver: freely reorderable drag-and-drop task lists, persisted to `localStorage`. No backend beyond one serverless function (`api/what-matters.js`), no state library, and a dependency-free hash router (added 2026-08-19 — see the tab section below).
 
 ## Stack
 
 - **Vite 8 + React 19.2** (`create-vite` origin — some unused scaffold leftovers remain, see Known Gaps)
 - **Tailwind CSS 4.3**, CSS-first `@theme` block in `src/index.css` (no `tailwind.config.js`, no PostCSS config)
 - `lucide-react` (icons, used); `framer-motion`, `clsx`, `tailwind-merge` installed but not currently used in `App.jsx`
-- No router, no state library, no test runner
+- No router dependency (a ~30-line hash router in `App.jsx` — `useHashRoute`), no state library, no test runner
 - Deploy: Vercel (the serverless function in `api/` needs a Vercel-style host or `vercel dev`)
 
 ## Real file map
@@ -243,12 +243,13 @@ A real, deployed, single-page Vite + React 19 app — not a mock prototype. Core
 
 To run it against a real Obsidian vault you supply your own sync step that writes those five files in the documented shapes. That script is intentionally absent — see Layer 3.
 
-## Real panel list (as of 2026-08-15)
+## Real panel list (as of 2026-08-19)
 
-Rendered by `App.jsx`, 2-column grid (`lg:grid-cols-[1fr_280px]`) — **not** 3-column, and there is no separate Views/Links/Skills-Cheat-Sheet panel (see Known gaps for why those still exist as data exports).
+Three hash-routed tabs (`useHashRoute` in `App.jsx`, no dependency). The 2026-08-15 router decline was reversed 2026-08-19 (vault Decision Log): the post-freeze North Star names "no tab router" the first daily-driver gap. The no-empty-router guardrail survives as an admission rule — a view earns a route only when it has real content, so the reconciliation IA's remaining tabs (Taste, Ideas, Finance, Learn) wait on data. Header (hero, quick capture, stats, mobile tab pills) is global to all tabs.
 
-**Center column**: What Matters Now, Today's Missions, Active Arcs, Workspaces, Life Buckets, Your Day + Mail (paired row).
-**Right sidebar**: Captured, Open Threads, Agent Activity, Wrap Up, OM Weekly.
+- **Dashboard** (`#/`), 2-column grid (`lg:grid-cols-[1fr_280px]`) — center: What Matters Now, Today's Missions, Active Arcs, Workspaces, Life Buckets, Your Day + Mail (paired row); sidebar: Captured, Open Threads.
+- **Agents** (`#/agents`) — Agent Activity, still read-only display.
+- **Review** (`#/review`) — Wrap Up, OM Weekly.
 
 Changed 2026-08-15: `Captured` is new (renders the quick-capture queue, which previously went nowhere); `Inbox` became `Mail` and is now a count rather than a browsable message list. "Agent Activity" was flagged uncommitted in an earlier version of this line — it landed in `72b2299`.
 
@@ -273,7 +274,7 @@ Changed 2026-08-15: `Captured` is new (renders the quick-capture queue, which pr
 - **2026-08-15** — `EMAILS_TO_HANDLE_SEED` and `YOUR_DAY_SEED` are still fully mocked (not live Gmail/Calendar reads). Labeled as mocked in the UI itself, not only in code comments.
 - **2026-08-15** — Capture routing is unsolved: a capture cannot reach the vault from the deployed app (no filesystem access). Needs a transport decision before tag syntax is worth designing.
 - ~~**2026-08-15** — Quick-capture input sets local state that's never read elsewhere.~~ Closed same day — persisted queue + `Captured` panel.
-- ~~**2026-08-15** — Workspaces tiles aren't wired to navigation (no router).~~ Closed same day — tiles expand in place with `obsidian://open` deep links; the router was gate-checked and deliberately declined.
+- ~~**2026-08-15** — Workspaces tiles aren't wired to navigation (no router).~~ Closed same day — tiles expand in place with `obsidian://open` deep links; the router was gate-checked and deliberately declined. **The decline itself was reversed 2026-08-19** (North Star post-freeze re-rank named it the first daily-driver gap): a three-tab hash router now exists, content-gated per the guardrail.
 
 ## Related
 
