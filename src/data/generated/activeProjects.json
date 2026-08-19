@@ -3,42 +3,49 @@
     "id": "proj-meridian",
     "title": "Meridian",
     "status": "in-progress",
-    "note": "The product itself — a scheduling layer for freelance studios. v1 scope is locked: onboarding, calendar sync, invoicing. Everything else is post-launch."
+    "note": "The product itself — a scheduling layer for freelance studios. v1 scope is locked: onboarding, calendar sync, invoicing. Everything else is post-launch.",
+    "lifeBucket": "Business"
   },
   {
     "id": "proj-billing",
     "title": "billing",
     "status": "blocked",
-    "note": "Stripe integration is built but blocked on the tax-handling decision. Cannot ship v1 without it. Waiting on a written answer from the accountant."
+    "note": "Stripe integration is built but blocked on the tax-handling decision. Cannot ship v1 without it. Waiting on a written answer from the accountant.",
+    "lifeBucket": "Business"
   },
   {
     "id": "proj-onboarding",
     "title": "onboarding",
     "status": "in-progress",
-    "note": "First-run flow. Four screens, two built. The empty-state copy is the part that keeps getting deferred and is probably the highest-leverage thing here."
+    "note": "First-run flow. Four screens, two built. The empty-state copy is the part that keeps getting deferred and is probably the highest-leverage thing here.",
+    "lifeBucket": "Business"
   },
   {
     "id": "proj-content",
     "title": "content-engine",
     "status": "started",
-    "note": "Weekly build-in-public post plus a monthly long-form teardown. The cadence matters more than any single post — one skipped week has historically become three."
+    "note": "Weekly build-in-public post plus a monthly long-form teardown. The cadence matters more than any single post — one skipped week has historically become three.",
+    "lifeBucket": "Business"
   },
   {
     "id": "proj-infra",
     "title": "infra",
     "status": "in-progress",
-    "note": "Preview deploys work. Production rollback does not, which is the actual risk. Staging parity is close enough to stop worrying about for now."
+    "note": "Preview deploys work. Production rollback does not, which is the actual risk. Staging parity is close enough to stop worrying about for now.",
+    "lifeBucket": "Systems"
   },
   {
     "id": "proj-design-system",
     "title": "design-system",
     "status": "done",
-    "note": "Tokens, type scale and the component set landed. Deliberately stopped here — further polish was becoming a way to avoid shipping billing."
+    "note": "Tokens, type scale and the component set landed. Deliberately stopped here — further polish was becoming a way to avoid shipping billing.",
+    "lifeBucket": "Systems"
   },
   {
     "id": "proj-research",
     "title": "user-research",
     "status": "started",
-    "note": "Six interviews scheduled, two done. The pattern so far: people do not want another calendar, they want fewer decisions about their calendar."
+    "note": "Six interviews scheduled, two done. The pattern so far: people do not want another calendar, they want fewer decisions about their calendar.",
+    "lifeBucket": "Business"
   }
 ]
