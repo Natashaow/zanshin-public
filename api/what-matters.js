@@ -16,6 +16,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -42,26 +44,28 @@ const YOUR_DAY_SEED = [
 
 // Abuse guard. This route spends a real Anthropic key on every call and requires no
 // credential, so once this repo is public the route is public knowledge — anyone can
-// read it here and bill the key by looping requests. The limiter is per warm instance,
-// not global (serverless gives no shared memory without a store), so treat it as a
-// speed bump that makes casual farming pointless, NOT as a hard spend cap. If this is
-// ever deployed on a real domain, put a proper store or Vercel's firewall in front.
-const RATE_LIMIT_WINDOW_MS = 60_000
-const RATE_LIMIT_MAX = 10
-const hits = new Map()
+// read it here and bill the key by looping requests. The limiter is backed by Upstash
+// Redis over REST, so the count is shared across all serverless instances — a real
+// spend cap, not the old per-warm-instance speed bump.
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, '60 s'),
+})
 
-function rateLimited(req) {
+async function isRateLimited(req) {
   const ip =
     (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
     req.socket?.remoteAddress ||
     'unknown'
-  const now = Date.now()
-  const recent = (hits.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
-  recent.push(now)
-  hits.set(ip, recent)
-  // Bound the map so a spray of distinct IPs can't grow it without limit.
-  if (hits.size > 5000) hits.clear()
-  return recent.length > RATE_LIMIT_MAX
+  const { success } = await ratelimit.limit(ip)
+  return !success
+}
+
+// Public error responses carry only a stable message; the real detail (upstream body,
+// stack, block types) goes to the server log where only the operator can read it.
+function sendError(res, status, publicMessage, detail) {
+  if (detail) console.error(`[what-matters] ${publicMessage}:`, detail)
+  res.status(status).json({ error: publicMessage })
 }
 
 export default async function handler(req, res) {
@@ -77,8 +81,8 @@ export default async function handler(req, res) {
     return
   }
 
-  if (rateLimited(req)) {
-    res.setHeader('Retry-After', String(RATE_LIMIT_WINDOW_MS / 1000))
+  if (await isRateLimited(req)) {
+    res.setHeader('Retry-After', '60')
     res.status(429).json({ error: 'Rate limit exceeded — try again shortly' })
     return
   }
@@ -94,7 +98,7 @@ export default async function handler(req, res) {
     openTasks = loadJSON('openTasks.json')
     northStarFocus = loadJSON('northStarFocus.json')
   } catch (e) {
-    res.status(500).json({ error: 'Failed to load vault data', detail: String(e) })
+    sendError(res, 500, 'Failed to load vault data', e)
     return
   }
 
@@ -144,7 +148,7 @@ Exactly 5 items.`
     })
     if (!resp.ok) {
       const text = await resp.text()
-      res.status(502).json({ error: 'Anthropic API error', detail: text })
+      sendError(res, 502, 'Anthropic API error', text)
       return
     }
     const data = await resp.json()
@@ -162,11 +166,11 @@ Exactly 5 items.`
     if (!parsed.items || !parsed.items.length) {
       // Surface what actually came back instead of silently returning empty —
       // this was exactly the bug that shipped once already (assumed content[0]).
-      res.status(502).json({ error: 'No items parsed from model response', rawTextFound: raw.slice(0, 500), contentBlockTypes: data.content?.map((c) => c.type) })
+      sendError(res, 502, 'No items parsed from model response', { rawTextFound: raw.slice(0, 500), contentBlockTypes: data.content?.map((c) => c.type) })
       return
     }
     res.status(200).json({ items: parsed.items, generatedAt: new Date().toISOString(), live: true })
   } catch (e) {
-    res.status(500).json({ error: 'Request failed', detail: String(e) })
+    sendError(res, 500, 'Request failed', e)
   }
 }
